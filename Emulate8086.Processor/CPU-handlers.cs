@@ -162,17 +162,11 @@ namespace Emulate8086.Processor
 
         private static void HandleADC(CPU self)
         {
-            // Add with carry
-            // Register/memory and register to either
-            // 000100dw mod reg r/m
-
-            // Immediate to register/memory
-            // 100000sw mod 010 r/m data, data if s:w=01
-            // HandleImmediate, shares first byte w/ADD
-
-            // Immediate to accumulator
-            // 0001010w
-            throw new NotImplementedException();
+            ADD(self, out var result);
+            self.CF = (result & 0x00010000) != 0;
+            {
+                self.CF = true;
+            }
         }
 
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -203,6 +197,11 @@ namespace Emulate8086.Processor
 
         private static void HandleADD(CPU self)
         {
+            ADD(self, out var result);
+        }
+
+        private static void ADD(CPU self, out int result)
+        { 
             var csip = self.csip;
             var w = self.ins_flag(0);
 
@@ -210,7 +209,7 @@ namespace Emulate8086.Processor
             // 0000010w data, data if w=1
             if ((self.insByte & 0x1111111) == 0b00000100)
             {
-                int result = self.ax + self.data(ref csip, w);
+                result = self.ax + self.data(ref csip, w);
                 self.CF = result >= 0x00010000;
                 self.ax = (ushort)result;
             }
@@ -224,7 +223,7 @@ namespace Emulate8086.Processor
                 // 000000dw mod reg r/m
                 if ((self.insByte & 0b11111100) == 0b00000000)
                 {
-                    int result = self.GetModRMData(w, addr, is_reg, reg_modrm) + self.GetReg((Register)reg, w);
+                    result = self.GetModRMData(w, addr, is_reg, reg_modrm) + self.GetReg((Register)reg, w);
                     if (ds)  // reverse?
                     {
                         self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
@@ -245,7 +244,8 @@ namespace Emulate8086.Processor
                     {
                         immediate = (ushort)(short)(sbyte)immediate;
                     }
-                    self.SetModRMData(immediate, w, addr, is_reg, reg_modrm);
+                    result = immediate + self.GetModRMData(w, addr, is_reg, reg_modrm);
+                    self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
                 }
             }
             self.csip = csip;
