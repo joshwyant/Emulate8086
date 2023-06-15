@@ -364,6 +364,17 @@ namespace Emulate8086.Processor
             throw new NotImplementedException();
         }
 
+        private void jmp(sbyte disp) => csip = csip_start + disp;
+
+        private sbyte get_disp() => (sbyte)memory[csip++];
+
+        private void jmp_disp() => jmp(get_disp());
+
+        private void jmp_disp_on(bool cond)
+        {
+            if (cond) jmp_disp();
+        }
+
         private static void HandleJA(CPU self)
         {
             HandleJNBE(self);
@@ -376,30 +387,31 @@ namespace Emulate8086.Processor
 
         private static void HandleJB(CPU self)
         {
+            // logic: https://wikidev.in/wiki/assembly/8086/JNAE
             // jb/jnae = Jump on below/not above or equal
             // 01110010 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.CF);
         }
 
         private static void HandleJBE(CPU self)
         {
             // jbe/jna jump on below or equal/not above
             // 01110110 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.CF || self.ZF);
         }
 
         private static void HandleJCXZ(CPU self)
         {
             // jump on cx zero
             // 11100011 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.cx == 0);
         }
 
         private static void HandleJE(CPU self)
         {
             // JE/JZ jump on equal/zero
             // 01110100 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.ZF);
         }
 
         private static void HandleJG(CPU self)
@@ -414,16 +426,17 @@ namespace Emulate8086.Processor
 
         private static void HandleJL(CPU self)
         {
+            // Logic: https://wikidev.in/wiki/assembly/8086/JL
             // JL/JNGE jump on less/not greater or equal
             // 01111100 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.SF != self.OF);
         }
 
         private static void HandleJLE(CPU self)
         {
             // JLE/JNG jump on less or equal/not greater
             // 01111110 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.SF != self.OF || self.ZF);
         }
 
         private static void HandleJMP(CPU self)
@@ -457,23 +470,24 @@ namespace Emulate8086.Processor
 
         private static void HandleJNB(CPU self)
         {
+            // Logic: https://wikidev.in/wiki/assembly/8086/jnb
             // jnb/jae Jump on not below/above or equal
             // 01110011 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(!self.CF);
         }
 
         private static void HandleJNBE(CPU self)
         {
             // jnbe/ja jump on not below or equal/above
             // 01110111
-            throw new NotImplementedException();
+            self.jmp_disp_on(!(self.CF || self.ZF));
         }
 
         private static void HandleJNE(CPU self)
         {
             // jne/jnz jump on not equal/not zero
             // 01110101 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(!self.ZF);
         }
 
         private static void HandleJNG(CPU self)
@@ -488,37 +502,38 @@ namespace Emulate8086.Processor
 
         private static void HandleJNL(CPU self)
         {
+            // Logic: https://wikidev.in/wiki/assembly/8086/jnl
             // jnl/jnge jump on not less/greater or equal
             // 01111101 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.SF == self.OF);
         }
 
         private static void HandleJNLE(CPU self)
         {
             // JNLE/JG jump on not less or equal/greater
             // 01111111 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on((self.SF == self.OF) || self.ZF);
         }
 
         private static void HandleJNO(CPU self)
         {
             // jump on not overflow
             // 01110001 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(!self.OF);
         }
 
         private static void HandleJNP(CPU self)
         {
             // jnp/jpo jump on not parity/parity odd
             // 01111011 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(!self.PF);
         }
 
         private static void HandleJNS(CPU self)
         {
             // jump on not sign
             // 01111001 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(!self.SF);
         }
 
         private static void HandleJNZ(CPU self)
@@ -530,14 +545,14 @@ namespace Emulate8086.Processor
         {
             // jump on overflow
             // 01110000 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.OF);
         }
 
         private static void HandleJP(CPU self)
         {
             // jp/jpe jump on parity/parity even
             // 01111010 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.PF);
         }
 
         private static void HandleJPE(CPU self)
@@ -554,7 +569,7 @@ namespace Emulate8086.Processor
         {
             // Jump on sign
             // 01111000 disp
-            throw new NotImplementedException();
+            self.jmp_disp_on(self.SF);
         }
 
         private static void HandleJZ(CPU self)

@@ -13,6 +13,7 @@ namespace Emulate8086.Processor
 
         Memory memory;
         byte insByte;
+        int csip_start;
         Instruction ins;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -138,6 +139,8 @@ namespace Emulate8086.Processor
 
         public void Clock()
         {
+            csip_start = csip;
+
             // Read the instruction byte
             insByte = memory[csip++];
 
