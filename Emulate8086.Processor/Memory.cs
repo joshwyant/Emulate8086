@@ -32,5 +32,24 @@ namespace Emulate8086.Processor
             contents[address] = (byte)value;
             contents[address + 1] = (byte)(value >> 8);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ushort dataAt(int addr, bool w)
+        {
+            return w ? wordAt(addr) : contents[addr];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void setDataAt(int address, ushort value, bool w)
+        {
+            if (w)
+            {
+                setWordAt(address, value);
+            }
+            else
+            {
+                contents[address] = (byte)value;
+            }
+        }
     }
 }

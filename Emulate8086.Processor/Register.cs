@@ -6,18 +6,18 @@ using System.Threading.Tasks;
 
 namespace Emulate8086.Processor
 {
-    enum Register
+    public enum Register : int
     {
-        None,
+        None = -1,
         AX,
-        BX,
         CX,
         DX,
+        BX,
         SP,
         BP,
         SI,
         DI,
-        AL,
+        AL = 0,
         CL,
         DL,
         BL,
@@ -25,9 +25,23 @@ namespace Emulate8086.Processor
         CH,
         DH,
         BH,
-        ES,
+        ES = 0,
         CS,
         SS,
-        DS
+        DS,
+        Disp0 = 0,
+        DispDirectMem = 0,
+        Disp8,
+        Disp16,
+        DispReg,
+        MemBXSI = 0,
+        MemBXDI,
+        MemBPSI,
+        MemBPDI,
+        MemSI,
+        MemDI,
+        MemBP,
+        MemBX,
+        MemDirect = 0b110
     }
 }

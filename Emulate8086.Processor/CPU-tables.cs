@@ -36,8 +36,8 @@ namespace Emulate8086.Processor
             { LOOPNZ, LOOPZ, LOOP, JCXZ, IN, IN, OUT, OUT, CALL, JMP, JMP, JMP, IN, IN, OUT, OUT },
             { LOCK, None, REP, REP, HLT, CMC, Group1, Group1, CLC, STC, CLI, STI, CLD, STD, Group2, Group2 }
         };
-        private readonly Dictionary<Instruction, Action> instructionImpls =
-            new Dictionary<Instruction, Action>()
+        private readonly Dictionary<Instruction, Action<CPU>> instructionImpls =
+            new Dictionary<Instruction, Action<CPU>>()
             {
                 { None, HandleNone },
                 { Immediate, HandleImmediate },

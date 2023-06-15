@@ -8,572 +8,610 @@ namespace Emulate8086.Processor
 {
     public partial class CPU
     {
-        private static void HandleNone()
+        bool is_seg_prefix = false;
+        Register seg_prefix = Register.None;
+
+        private static void HandleNone(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleImmediate()
+        private static void HandleImmediate(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleShift()
+        private static void HandleShift(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleGroup1()
+        private static void HandleGroup1(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleGroup2()
+        private static void HandleGroup2(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleESPrefix()
+        private static void HandleESPrefix(CPU self)
         {
-            throw new NotImplementedException();
+            self.is_seg_prefix = true;
+            self.seg_prefix = Register.ES;
         }
 
-        private static void HandleCSPrefix()
+        private static void HandleCSPrefix(CPU self)
         {
-            throw new NotImplementedException();
+            self.is_seg_prefix = true;
+            self.seg_prefix = Register.CS;
         }
 
-        private static void HandleSSPrefix()
+        private static void HandleSSPrefix(CPU self)
         {
-            throw new NotImplementedException();
+            self.is_seg_prefix = true;
+            self.seg_prefix = Register.SS;
         }
 
-        private static void HandleDSPrefix()
+        private static void HandleDSPrefix(CPU self)
         {
-            throw new NotImplementedException();
+            self.is_seg_prefix = true;
+            self.seg_prefix = Register.DS;
         }
 
-        private static void HandleAAA()
+        private static void HandleAAA(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleAAD()
+        private static void HandleAAD(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleAAM()
+        private static void HandleAAM(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleAAS()
+        private static void HandleAAS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleADC()
+        private static void HandleADC(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleADD()
+        private static void HandleADD(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleAND()
+        private static void HandleAND(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCALL()
+        private static void HandleCALL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCBW()
+        private static void HandleCBW(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCLC()
+        private static void HandleCLC(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCLD()
+        private static void HandleCLD(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCLI()
+        private static void HandleCLI(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCMC()
+        private static void HandleCMC(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCMP()
+        private static void HandleCMP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCMPS()
+        private static void HandleCMPS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleCWD()
+        private static void HandleCWD(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleDAA()
+        private static void HandleDAA(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleDAS()
+        private static void HandleDAS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleDEC()
+        private static void HandleDEC(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleDIV()
+        private static void HandleDIV(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleESC()
+        private static void HandleESC(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleHLT()
+        private static void HandleHLT(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleIDIV()
+        private static void HandleIDIV(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleIMUL()
+        private static void HandleIMUL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleIN()
+        private static void HandleIN(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleINC()
+        private static void HandleINC(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleINT()
+        private static void HandleINT(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleINTO()
+        private static void HandleINTO(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleIRET()
+        private static void HandleIRET(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJA()
+        private static void HandleJA(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJAE()
+        private static void HandleJAE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJB()
+        private static void HandleJB(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJBE()
+        private static void HandleJBE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJCXZ()
+        private static void HandleJCXZ(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJE()
+        private static void HandleJE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJG()
+        private static void HandleJG(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJGE()
+        private static void HandleJGE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJL()
+        private static void HandleJL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJLE()
+        private static void HandleJLE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJMP()
+        private static void HandleJMP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNA()
+        private static void HandleJNA(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNAE()
+        private static void HandleJNAE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNB()
+        private static void HandleJNB(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNBE()
+        private static void HandleJNBE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNE()
+        private static void HandleJNE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNG()
+        private static void HandleJNG(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNGE()
+        private static void HandleJNGE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNL()
+        private static void HandleJNL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNLE()
+        private static void HandleJNLE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNO()
+        private static void HandleJNO(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNP()
+        private static void HandleJNP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNS()
+        private static void HandleJNS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJNZ()
+        private static void HandleJNZ(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJO()
+        private static void HandleJO(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJP()
+        private static void HandleJP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJPE()
+        private static void HandleJPE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJPO()
+        private static void HandleJPO(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJS()
+        private static void HandleJS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleJZ()
+        private static void HandleJZ(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLAHF()
+        private static void HandleLAHF(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLDS()
+        private static void HandleLDS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLEA()
+        private static void HandleLEA(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLES()
+        private static void HandleLES(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLOCK()
+        private static void HandleLOCK(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLODS()
+        private static void HandleLODS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLOOP()
+        private static void HandleLOOP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLOOPE()
+        private static void HandleLOOPE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLOOPNE()
+        private static void HandleLOOPNE(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLOOPNZ()
+        private static void HandleLOOPNZ(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleLOOPZ()
+        private static void HandleLOOPZ(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleMOV()
+        private static void HandleMOV(CPU self)
         {
-            throw new NotImplementedException();
+            var csip = self.csip;
+
+            if ((self.insByte & 0b11111100) == 0b10001000)
+            {
+                self.MovRMToFromR(ref csip);
+            }
+            else if ((self.insByte & 0b11111110) == 0b11000110)
+            {
+                self.MovImmToRM(ref csip);
+            }
+            else if ((self.insByte & 0b11110000) == 0b10110000)
+            {
+                self.MovImmToR(ref csip);
+            }
+            else if ((self.insByte & 0b11111110) == 0b10100000)
+            {
+                self.MovMemToAccum(ref csip);
+            }
+            else if ((self.insByte & 0b11111110) == 0b10100010)
+            {
+                self.MovAccumToMemory(ref csip);
+            }
+            else if (self.insByte == 0b10001110)
+            {
+                self.MovRMToSegr(ref csip);
+            }
+            else  // 0b10001100
+            {
+                self.MovSegrToRM(ref csip);
+            }
+
+            self.csip = csip;
         }
 
-        private static void HandleMOVS()
+        private static void HandleMOVS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleMUL()
+        private static void HandleMUL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleNEG()
+        private static void HandleNEG(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleNOP()
+        private static void HandleNOP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleNOT()
+        private static void HandleNOT(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleOR()
+        private static void HandleOR(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleOUT()
+        private static void HandleOUT(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandlePOP()
+        private static void HandlePOP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandlePOPF()
+        private static void HandlePOPF(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandlePUSH()
+        private static void HandlePUSH(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandlePUSHF()
+        private static void HandlePUSHF(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleRCL()
+        private static void HandleRCL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleRCR()
+        private static void HandleRCR(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleREP()
+        private static void HandleREP(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleRET()
+        private static void HandleRET(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleROL()
+        private static void HandleROL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleROR()
+        private static void HandleROR(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSAHF()
+        private static void HandleSAHF(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSAL()
+        private static void HandleSAL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSAR()
+        private static void HandleSAR(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSBB()
+        private static void HandleSBB(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSCAS()
+        private static void HandleSCAS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSHL()
+        private static void HandleSHL(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSHR()
+        private static void HandleSHR(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSTC()
+        private static void HandleSTC(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSTD()
+        private static void HandleSTD(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSTI()
+        private static void HandleSTI(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSTOS()
+        private static void HandleSTOS(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleSUB()
+        private static void HandleSUB(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleTEST()
+        private static void HandleTEST(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleWAIT()
+        private static void HandleWAIT(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleXCHG()
+        private static void HandleXCHG(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleXLAT()
+        private static void HandleXLAT(CPU self)
         {
             throw new NotImplementedException();
         }
 
-        private static void HandleXOR()
+        private static void HandleXOR(CPU self)
         {
             throw new NotImplementedException();
         }
