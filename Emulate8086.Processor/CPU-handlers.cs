@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -112,11 +113,29 @@ namespace Emulate8086.Processor
             self.seg_prefix = Register.DS;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void AAA()
+        {
+            // Logic: https://en.wikipedia.org/wiki/Intel_BCD_opcode
+            //        https://web.archive.org/web/20190203181246/http://www.jaist.ac.jp/iscenter-new/mpc/altix/altixdata/opt/intel/vtune/doc/users_guide/mergedProjects/analyzer_ec/mergedProjects/reference_olh/mergedProjects/instructions/instruct32_hh/vc2a.htm
+            //        https://web.archive.org/web/20081102170717/http://webster.cs.ucr.edu/AoA/Windows/HTML/AdvancedArithmetica6.html#1000255
+            if ((al & 0x0F) > 10)
+            {
+                al = (byte)((al + 6) & 0xF);
+                ah += 1;
+                flags |= Flags.CF | Flags.AF;
+            }
+            else
+            {
+                flags &= ~(Flags.CF | Flags.AF);
+            }
+        }
+
         private static void HandleAAA(CPU self)
         {
             // ASCII adjust for add
             // 00110111
-            throw new NotImplementedException();
+            self.AAA();
         }
 
         private static void HandleAAD(CPU self)
@@ -156,18 +175,80 @@ namespace Emulate8086.Processor
             throw new NotImplementedException();
         }
 
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        private void modrm(out Register mod, out int reg, out Register rm)
+        {
+            var modrm = memory[csip++];
+            mod = (Register)(modrm >> 6);
+            reg = (modrm & 0b00111000) >> 3;
+            rm = (Register)(modrm & 0x0b111);
+        }
+
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        private bool ins_flag(int pos)
+        {
+            var mask = 1 << pos;
+            return (insByte & mask) != 0;
+        }
+
+        private ushort data(ref int csip, bool w)
+        {
+            int result = memory[csip++];
+            if (w)
+            {
+                result |= memory[csip++] << 8;
+            }
+            return (ushort)result;
+        }
+
         private static void HandleADD(CPU self)
         {
-            // Register/memory with register to either
-            // 000000dw mod reg r/m
-
-            // Immediate to register/memory
-            // 100000sw mod 000 r/m data, data if s:w=01
-            // HandleImmediate, shares first byte w/ADC
+            var csip = self.csip;
+            var w = self.ins_flag(0);
 
             // Immediate to accumulator
             // 0000010w data, data if w=1
-            throw new NotImplementedException();
+            if ((self.insByte & 0x1111111) == 0b00000100)
+            {
+                int result = self.ax + self.data(ref csip, w);
+                self.CF = result >= 0x00010000;
+                self.ax = (ushort)result;
+            }
+            else
+            {
+                self.modrm(out var mod, out var reg, out var rm);
+                self.CalcModRMAddress(ref csip, out var addr, out bool is_reg, out var reg_modrm);
+                var ds = self.ins_flag(1);
+
+                // Register/memory with register to either
+                // 000000dw mod reg r/m
+                if ((self.insByte & 0b11111100) == 0b00000000)
+                {
+                    int result = self.GetModRMData(w, addr, is_reg, reg_modrm) + self.GetReg((Register)reg, w);
+                    if (ds)  // reverse?
+                    {
+                        self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
+                    }
+                    else
+                    {
+                        self.SetReg((Register)reg, (ushort)result, w);
+                    }
+                }
+
+                // Immediate to register/memory
+                // 100000sw mod 000 r/m data, data if s:w=01
+                // HandleImmediate, shares first byte w/ADC
+                else
+                {
+                    var immediate = self.data(ref csip, w);
+                    if (ds) // short form, sign extend
+                    {
+                        immediate = (ushort)(short)(sbyte)immediate;
+                    }
+                    self.SetModRMData(immediate, w, addr, is_reg, reg_modrm);
+                }
+            }
+            self.csip = csip;
         }
 
         private static void HandleAND(CPU self)
