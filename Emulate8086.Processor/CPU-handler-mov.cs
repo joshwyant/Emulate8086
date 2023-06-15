@@ -8,6 +8,42 @@ namespace Emulate8086.Processor
 {
     public partial class CPU
     {
+        private static void HandleMOV(CPU self)
+        {
+            var csip = self.csip;
+
+            if ((self.insByte & 0b11111100) == 0b10001000)
+            {
+                self.MovRMToFromR(ref csip);
+            }
+            else if ((self.insByte & 0b11111110) == 0b11000110)
+            {
+                self.MovImmToRM(ref csip);
+            }
+            else if ((self.insByte & 0b11110000) == 0b10110000)
+            {
+                self.MovImmToR(ref csip);
+            }
+            else if ((self.insByte & 0b11111110) == 0b10100000)
+            {
+                self.MovMemToAccum(ref csip);
+            }
+            else if ((self.insByte & 0b11111110) == 0b10100010)
+            {
+                self.MovAccumToMemory(ref csip);
+            }
+            else if (self.insByte == 0b10001110)
+            {
+                self.MovRMToSegr(ref csip);
+            }
+            else  // 0b10001100
+            {
+                self.MovSegrToRM(ref csip);
+            }
+
+            self.csip = csip;
+        }
+
         private void MovSegrToRM(ref int csip)
         {
             // 10001100 | mod 0 reg r/m
