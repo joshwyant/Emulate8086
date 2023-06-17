@@ -4,8 +4,8 @@ namespace Emulate8086.Processor
 {
     public partial class CPU
     {
-        public CPU(Memory m) 
-        { 
+        public CPU(Memory m)
+        {
             memory = m;
             cs = 0;
             ip = 0;
@@ -19,14 +19,19 @@ namespace Emulate8086.Processor
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ushort seg_prefix_or_default(Register def = Register.DS)
         {
-            return GetSeg(
-                seg_prefix != Register.None ?
-                    seg_prefix :
-                    def
-            );
+            var seg_prefix = prefix switch
+            {
+                PrefixFlags.ES => Register.ES,
+                PrefixFlags.DS => Register.DS,
+                PrefixFlags.SS => Register.SS,
+                PrefixFlags.CS => Register.CS,
+                _ => def
+            };
+            effective_prefix = seg_prefix;
+            return GetSeg(seg_prefix);
         }
 
-        public void SetModRMData(ushort data, bool w, int addr, bool is_reg, Register reg)
+        public void SetModRMData(ushort data, bool? w, int addr, bool is_reg, Register reg)
         {
             if (is_reg)
             {
@@ -50,28 +55,32 @@ namespace Emulate8086.Processor
             }
         }
 
-        public void CalcModRMAddress(ref int modrm_addr, out int addr, out bool is_reg, out Register reg)
+        public void DecodeModRMByte()
         {
-            CalcModRMEffectiveAddress(ref modrm_addr, out var eff_addr, out var seg_addr, out var is_reg1, out var reg1);
-            addr = (seg_addr << 4) + eff_addr;
-            reg = reg1;
-            is_reg = is_reg1;
-        }
+            modrm_is_reg = false;
+            modrm_eff_addr = 0;
+            modrm_seg_addr = 0;
+            modrm_register = Register.None;
 
-        public void CalcModRMEffectiveAddress(ref int modrm_addr, out ushort eff_addr, out ushort seg_addr, out bool is_reg, out Register reg)
-        {
-            is_reg = false;
-            eff_addr = 0;
-            seg_addr = 0;
-            reg = Register.None;
-            var modrm = memory[modrm_addr++];
             var mod = (Register)(modrm >> 6);
             var rm = (Register)(modrm & 0b111);
+            var middle = (modrm & 0b00111000) >> 3;
+
+            // Middle byte could be an extended opcode, or another register.
+            if ((instructionFlags & InstructionDecoderFlags.ModRMOpcode) != 0)
+            {
+                insReg = (Register)middle;
+            }
+            else if ((instructionFlags & InstructionDecoderFlags.ModRMReg) != 0)
+            {
+                insExtOpcode = middle;
+            }
+
             if (mod == Register.DispReg)
             {
-                is_reg = true;
-                reg = rm;
-                seg_addr = rm switch
+                modrm_is_reg = true;
+                modrm_register = rm;
+                modrm_seg_addr = rm switch
                 {
                     Register.SP => seg_prefix_or_default(Register.SS),
                     Register.BP => seg_prefix_or_default(Register.SS),
@@ -79,19 +88,18 @@ namespace Emulate8086.Processor
                 };
                 return;
             }
-            int disp;
             if (mod == Register.Disp8)
             {
-                disp = (sbyte)(memory[modrm_addr++]);
+                disp = (sbyte)memory[csip++];
             }
             else // mod = Disp16 or Disp0
             {
                 // Disp16, or mod/rm = 00/110
                 if (mod == Register.Disp16 || (int)rm == 0b110)
                 {
-                    var lo = memory[modrm_addr++];
-                    var hi = memory[modrm_addr++];
-                    var val = (ushort)((hi << 8) | lo);
+                    var lo = memory[csip++];
+                    var hi = memory[csip++];
+                    var val = (short)(ushort)((hi << 8) | lo);
                     if (mod == Register.Disp16)
                     {
                         disp = val;
@@ -100,8 +108,8 @@ namespace Emulate8086.Processor
                     {
                         // This is a special case:
                         // Return DISP directly as mem. addr.
-                        eff_addr = (ushort)((hi << 8) | lo);
-                        seg_addr = seg_prefix_or_default();
+                        modrm_eff_addr = (ushort)((hi << 8) | lo);
+                        modrm_seg_addr = seg_prefix_or_default();
                         return;
                     }
                 }
@@ -119,7 +127,7 @@ namespace Emulate8086.Processor
                 Register.MemBP => Register.SS,
                 _ => Register.DS
             };
-            seg_addr = seg_prefix_or_default(def_seg);
+            modrm_seg_addr = seg_prefix_or_default(def_seg);
 
             // Get the effective address.
             var addr = rm switch
@@ -134,7 +142,171 @@ namespace Emulate8086.Processor
                 Register.MemBX => bx,
                 _ => 0
             };
-            eff_addr = (ushort)(addr + disp);
+            modrm_eff_addr = (ushort)(addr + disp);
+        }
+
+        int modrm_addr => modrm_seg_addr * 16 + modrm_addr;
+
+        InstructionDecoderFlags instructionFlags;
+        PrefixFlags prefix;
+        Register insReg;
+        bool insW;
+        bool insD;
+        bool insS;
+        bool insV;
+        bool insZ;
+        int insExtOpcode;
+        ushort ins_data;
+        ushort ins_addr;
+        ushort ins_seg;
+        byte modrm;
+        ushort modrm_eff_addr;
+        ushort modrm_seg_addr;
+        bool modrm_is_reg;
+        Register modrm_register;
+        private Register effective_prefix;
+        short disp;
+
+        private PrefixFlags current_segment =>
+            effective_prefix switch
+            {
+                Register.CS => PrefixFlags.CS,
+                Register.ES => PrefixFlags.ES,
+                Register.SS => PrefixFlags.SS,
+                _ => PrefixFlags.DS,
+            };
+
+        void DecodeInstruction(InstructionDecoderFlags flags)
+        {
+            instructionFlags = flags;
+
+            prefix = PrefixFlags.None;
+            insReg = Register.None;
+            insW = false;
+            insD = false;
+            insS = false;
+            insV = false;
+            insZ = false;
+            insExtOpcode = 0;
+            ins_data = 0;
+            ins_addr = 0;
+            ins_seg = 0;
+            modrm = 0;
+            disp = 0;
+
+
+            // Check for instruction prefixes.
+            if ((flags & InstructionDecoderFlags.Pfix) != 0)
+            {
+                switch (ins)
+                {
+                    case Instruction.CSPrefix:
+                        prefix |= PrefixFlags.CS;
+                        break;
+                    case Instruction.DSPrefix:
+                        prefix |= PrefixFlags.DS;
+                        break;
+                    case Instruction.ESPrefix:
+                        prefix |= PrefixFlags.ES;
+                        break;
+                    case Instruction.SSPrefix:
+                        prefix |= PrefixFlags.SS;
+                        break;
+                    case Instruction.REP:
+                        prefix |= PrefixFlags.REP;
+                        break;
+                    case Instruction.LOCK:
+                        prefix |= PrefixFlags.LOCK;
+                        break;
+                }
+            }
+
+            // Check for Z flag
+            if ((flags & InstructionDecoderFlags.Z) != 0)
+            {
+                insZ = (insByte & 1) != 0;
+            }
+
+            // Decode embedded register
+            var flag_mask = 1;  // Position of next flag
+            if ((flags & InstructionDecoderFlags.Reg) != 0)
+            {
+                insReg = (Register)(insByte & 0b00000111);
+                // W flag could be positioned after embedded register.
+                flag_mask = 0b00001000;
+            }
+            // Decode embedded segment register.
+            else if ((flags & InstructionDecoderFlags.Seg) != 0)
+            {
+                insReg = (Register)((insByte & 0b00011000) >> 3);
+            }
+
+            // Check for W flag
+            if ((flags & InstructionDecoderFlags.W) != 0)
+            {
+                insW = (insByte & flag_mask) != 0;
+                flag_mask <<= 1; // Next flag is to the left of the W flag.
+            }
+
+            // There can be a D, S, or V flag to the left of the W flag.
+            if ((flags & InstructionDecoderFlags.D) != 0)
+            {
+                insD = (insByte & flag_mask) != 0;
+            }
+            else if ((flags & InstructionDecoderFlags.S) != 0)
+            {
+                insS = (insByte & flag_mask) != 0;
+            }
+            else if ((flags & InstructionDecoderFlags.V) != 0)
+            {
+                insV = (insByte & flag_mask) != 0;
+            }
+
+            // Read ModRM byte
+            if ((flags & InstructionDecoderFlags.ModRM) != 0)
+            {
+                modrm = memory[csip++];
+
+                DecodeModRMByte();
+            }
+
+            if ((instructionFlags & (InstructionDecoderFlags.Byte | InstructionDecoderFlags.Word)) != 0)
+            {
+                var dataByte = memory[csip++];
+                ins_data = insS ? 
+                    (ushort)(short)(sbyte)dataByte : 
+                    dataByte;
+            }
+            if ((instructionFlags & InstructionDecoderFlags.Word) != 0)
+            {
+                // Sometimes, the W flag refers to a different operation, not the data byte
+                if (insW && (instructionFlags & InstructionDecoderFlags.Word) != 0)
+                {
+                    ins_data |= (ushort)(memory[csip++] << 8);
+                }
+            }
+
+            // Get an address
+            if ((instructionFlags & (InstructionDecoderFlags.Addr | InstructionDecoderFlags.AddL)) != 0)
+            {
+                ins_addr = (ushort)(memory[csip++] | (memory[csip++] << 8));
+            }
+
+            // Get address segment
+            if ((instructionFlags & InstructionDecoderFlags.AddL) != 0)
+            {
+                ins_seg = (ushort)(memory[csip++] | (memory[csip++] << 8));
+            }
+
+            // Calculate displacement
+            if ((instructionFlags & (InstructionDecoderFlags.DispB | InstructionDecoderFlags.DispW)) != 0)
+            {
+                disp = (sbyte)memory[csip++];
+            }
+            if ((instructionFlags & InstructionDecoderFlags.DispW) != 0)
+            {
+                disp |= (short)(ushort)(memory[csip++] << 8);
+            }
         }
 
         public void Clock()
@@ -151,11 +323,11 @@ namespace Emulate8086.Processor
             var impl = instructionImpls[ins];
 
             // Call the instruction
-            is_seg_prefix = false;
+            prefix = PrefixFlags.None;
             impl(this);
-            if (!is_seg_prefix)
+            if (prefix == PrefixFlags.None)
             {
-                seg_prefix = Register.None;
+                prefix = PrefixFlags.None;
             }
         }
     }

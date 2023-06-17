@@ -9,9 +9,6 @@ namespace Emulate8086.Processor
 {
     public partial class CPU
     {
-        bool is_seg_prefix = false;
-        Register seg_prefix = Register.None;
-
         private static void HandleNone(CPU self)
         {
             throw new NotImplementedException();
@@ -91,26 +88,22 @@ namespace Emulate8086.Processor
 
         private static void HandleESPrefix(CPU self)
         {
-            self.is_seg_prefix = true;
-            self.seg_prefix = Register.ES;
+            self.DecodeInstruction(InstructionDecoderFlags.Pfix);
         }
 
         private static void HandleCSPrefix(CPU self)
         {
-            self.is_seg_prefix = true;
-            self.seg_prefix = Register.CS;
+            self.DecodeInstruction(InstructionDecoderFlags.Pfix);
         }
 
         private static void HandleSSPrefix(CPU self)
         {
-            self.is_seg_prefix = true;
-            self.seg_prefix = Register.SS;
+            self.DecodeInstruction(InstructionDecoderFlags.Pfix);
         }
 
         private static void HandleDSPrefix(CPU self)
         {
-            self.is_seg_prefix = true;
-            self.seg_prefix = Register.DS;
+            self.DecodeInstruction(InstructionDecoderFlags.Pfix);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -169,31 +162,31 @@ namespace Emulate8086.Processor
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        private void modrm(out Register mod, out int reg, out Register rm)
-        {
-            var modrm = memory[csip++];
-            mod = (Register)(modrm >> 6);
-            reg = (modrm & 0b00111000) >> 3;
-            rm = (Register)(modrm & 0x0b111);
-        }
+        //[MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        //private void modrm(out Register mod, out int reg, out Register rm)
+        //{
+        //    var modrm = memory[csip++];
+        //    mod = (Register)(modrm >> 6);
+        //    reg = (modrm & 0b00111000) >> 3;
+        //    rm = (Register)(modrm & 0x0b111);
+        //}
 
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        private bool ins_flag(int pos)
-        {
-            var mask = 1 << pos;
-            return (insByte & mask) != 0;
-        }
+        //[MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        //private bool ins_flag(int pos)
+        //{
+        //    var mask = 1 << pos;
+        //    return (insByte & mask) != 0;
+        //}
 
-        private ushort data(ref int csip, bool w)
-        {
-            int result = memory[csip++];
-            if (w)
-            {
-                result |= memory[csip++] << 8;
-            }
-            return (ushort)result;
-        }
+        //private ushort data(ref int csip, bool w)
+        //{
+        //    int result = memory[csip++];
+        //    if (w)
+        //    {
+        //        result |= memory[csip++] << 8;
+        //    }
+        //    return (ushort)result;
+        //}
 
         private static void HandleADD(CPU self)
         {
@@ -201,54 +194,69 @@ namespace Emulate8086.Processor
         }
 
         private static void ADD(CPU self, out int result)
-        { 
-            var csip = self.csip;
-            var w = self.ins_flag(0);
+        {
 
-            // Immediate to accumulator
-            // 0000010w data, data if w=1
-            if ((self.insByte & 0x1111111) == 0b00000100)
+        }
+
+        private static void ADD(CPU self, out int result)
+        {
+            if ((self.insByte & 0b11111100) == 0b00000000)
             {
-                result = self.ax + self.data(ref csip, w);
-                self.CF = result >= 0x00010000;
-                self.ax = (ushort)result;
-            }
-            else
-            {
-                self.modrm(out var mod, out var reg, out var rm);
-                self.CalcModRMAddress(ref csip, out var addr, out bool is_reg, out var reg_modrm);
-                var ds = self.ins_flag(1);
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMReg |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.D);
 
-                // Register/memory with register to either
-                // 000000dw mod reg r/m
-                if ((self.insByte & 0b11111100) == 0b00000000)
+                // Add modrm/reg depending on direction
+                throw new NotImplementedException();
+                
+                result = self.GetModRMData(w, addr, is_reg, reg_modrm) + self.GetReg((Register)reg, w);
+                if (ds)  // reverse?
                 {
-                    result = self.GetModRMData(w, addr, is_reg, reg_modrm) + self.GetReg((Register)reg, w);
-                    if (ds)  // reverse?
-                    {
-                        self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
-                    }
-                    else
-                    {
-                        self.SetReg((Register)reg, (ushort)result, w);
-                    }
-                }
-
-                // Immediate to register/memory
-                // 100000sw mod 000 r/m data, data if s:w=01
-                // HandleImmediate, shares first byte w/ADC
-                else
-                {
-                    var immediate = self.data(ref csip, w);
-                    if (ds) // short form, sign extend
-                    {
-                        immediate = (ushort)(short)(sbyte)immediate;
-                    }
-                    result = immediate + self.GetModRMData(w, addr, is_reg, reg_modrm);
                     self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
                 }
+                else
+                {
+                    self.SetReg((Register)reg, (ushort)result, w);
+                }
             }
-            self.csip = csip;
+            else if ((self.insByte & 0x11111100) == 0b10000000)
+            {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMOpcode |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.S |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word);
+
+                // Add immediate to r/m
+                // Extended opcode is 000
+                throw new NotImplementedException();
+
+                var immediate = self.data(ref csip, w);
+                if (ds) // short form, sign extend
+                {
+                    immediate = (ushort)(short)(sbyte)immediate;
+                }
+                result = immediate + self.GetModRMData(w, addr, is_reg, reg_modrm);
+                self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
+            }
+            else if ((self.insByte & 0b11111110) == 0b00000100)
+            {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word);
+
+                // Add immediate to accumulator
+                throw new NotImplementedException();
+
+                result = self.ax + self.data(ref csip, w);
+                self.CF = // result >= 0x00010000; wrong, min and maxval, also, this is not adc, no carry
+                self.ax = (ushort)result;
+            }
         }
 
         private static void HandleAND(CPU self)
@@ -268,7 +276,7 @@ namespace Emulate8086.Processor
         {
             // Direct within segment
             // 11101000 disp-low disp-high
-            
+
             // Inderect within segment
             // 11111111 mod 010 r/m
 
@@ -445,11 +453,9 @@ namespace Emulate8086.Processor
             throw new NotImplementedException();
         }
 
-        private void jmp(sbyte disp) => csip = csip_start + disp;
+        private void jmp(short disp) => csip = csip_start + disp;
 
-        private sbyte get_disp() => (sbyte)memory[csip++];
-
-        private void jmp_disp() => jmp(get_disp());
+        private void jmp_disp() => jmp(disp);
 
         private void jmp_disp_on(bool cond)
         {
@@ -951,7 +957,7 @@ namespace Emulate8086.Processor
             // imm to reg/mem
             // 100000sw mod 101 r/m data, data if s:w=01
             // Part of Immediate group
-            
+
             // imm from accum
             // 0010110w data, data if w=1
             throw new NotImplementedException();
