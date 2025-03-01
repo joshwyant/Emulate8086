@@ -10,8 +10,8 @@ namespace Emulate8086.Processor
     internal enum InstructionDecoderFlags
     {
         None = 0,
-        Byte = 1, // Data can be 1 byte
-        Word = 1 << 1, // Data can be 2 bytes
+        Byte = 1, // Immediate data can be 1 byte
+        Word = 1 << 1, // Immediate data can be 2 bytes
         W = 1 << 2, // Has word size flag
         D  = 1 << 3, // Has direction flag
         Seg  = 1 << 4, // Middle 2 bits segment

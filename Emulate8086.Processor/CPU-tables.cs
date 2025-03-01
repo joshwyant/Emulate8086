@@ -40,8 +40,8 @@ namespace Emulate8086.Processor
             new Dictionary<Instruction, Action<CPU>>()
             {
                 { None, HandleNone },
-                { Immediate, HandleImmediate },
-                { Shift, HandleShift },
+                { Immediate, HandleImmediateGroup },
+                { Shift, HandleShiftGroup },
                 { Group1, HandleGroup1 },
                 { Group2, HandleGroup2 },
                 { ESPrefix, HandleESPrefix },

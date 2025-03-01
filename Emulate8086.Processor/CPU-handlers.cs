@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -11,10 +12,10 @@ namespace Emulate8086.Processor
     {
         private static void HandleNone(CPU self)
         {
-            throw new NotImplementedException();
+            // throw new NotImplementedException();
         }
 
-        private static void HandleImmediate(CPU self)
+        private static void HandleImmediateGroup(CPU self)
         {
             var ins = (self.memory[self.csip] & 0b00111000) >> 3;
             Action<CPU> handler = ins switch
@@ -26,16 +27,17 @@ namespace Emulate8086.Processor
                 0b100 => HandleAND,
                 0b101 => HandleSUB,
                 0b110 => HandleXOR,
-                0b111 => HandleCMP
+                0b111 => HandleCMP,
+                _ => HandleNone  // dummy; outside possible range
             };
 
             handler(self);
         }
 
-        private static void HandleShift(CPU self)
+        private static void HandleShiftGroup(CPU self)
         {
             var ins = (self.memory[self.csip] & 0b00111000) >> 3;
-            Action<CPU>? handler = ins switch
+            Action<CPU> handler = ins switch
             {
                 0b000 => HandleROL,
                 0b001 => HandleROR,
@@ -43,35 +45,42 @@ namespace Emulate8086.Processor
                 0b011 => HandleRCR,
                 0b100 => HandleSHL_SAL,
                 0b101 => HandleSHR,
-                0b110 => null,
-                0b111 => HandleSAR
+                0b110 => HandleInvalid,  // Invalid
+                0b111 => HandleSAR,
+                _ => HandleNone  // dummy; outside possible range
             };
 
-            handler!(self);
+            handler(self);
+        }
+
+        private static void HandleInvalid(CPU self)
+        {
+            throw new NotImplementedException();
         }
 
         private static void HandleGroup1(CPU self)
         {
             var ins = (self.memory[self.csip] & 0b00111000) >> 3;
-            Action<CPU>? handler = ins switch
+            Action<CPU> handler = ins switch
             {
                 0b000 => HandleTEST,
-                0b001 => null,
+                0b001 => HandleInvalid,  // Invalid
                 0b010 => HandleNOT,
                 0b011 => HandleNEG,
                 0b100 => HandleMUL,
                 0b101 => HandleIMUL,
                 0b110 => HandleDIV,
-                0b111 => HandleIDIV
+                0b111 => HandleIDIV,
+                _ => HandleNone  // dummy; outside possible range
             };
 
-            handler!(self);
+            handler(self);
         }
 
         private static void HandleGroup2(CPU self)
         {
             var ins = (self.memory[self.csip] & 0b00111000) >> 3;
-            Action<CPU>? handler = ins switch
+            Action<CPU> handler = ins switch
             {
                 0b000 => HandleINC,
                 0b001 => HandleDEC,
@@ -80,10 +89,11 @@ namespace Emulate8086.Processor
                 0b100 => HandleJMP,
                 0b101 => HandleJMP,
                 0b110 => HandlePUSH,
-                0b111 => null
+                0b111 => HandleInvalid,  // Invalid
+                _ => HandleNone  // dummy; outside possible range
             };
 
-            handler!(self);
+            handler(self);
         }
 
         private static void HandleESPrefix(CPU self)
@@ -190,12 +200,7 @@ namespace Emulate8086.Processor
 
         private static void HandleADD(CPU self)
         {
-            ADD(self, out var result);
-        }
-
-        private static void ADD(CPU self, out int result)
-        {
-
+            ADD(self, out _);
         }
 
         private static void ADD(CPU self, out int result)
@@ -209,16 +214,14 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.D);
 
                 // Add modrm/reg depending on direction
-                throw new NotImplementedException();
-                
-                result = self.GetModRMData(w, addr, is_reg, reg_modrm) + self.GetReg((Register)reg, w);
-                if (ds)  // reverse?
+                result = self.GetModRMData() + self.GetReg(self.insReg, self.insW);
+                if (self.insD)
                 {
-                    self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
+                    self.SetModRMData((ushort)result);
                 }
                 else
                 {
-                    self.SetReg((Register)reg, (ushort)result, w);
+                    self.SetReg(self.insReg, (ushort)result, self.insW);
                 }
             }
             else if ((self.insByte & 0x11111100) == 0b10000000)
@@ -233,15 +236,9 @@ namespace Emulate8086.Processor
 
                 // Add immediate to r/m
                 // Extended opcode is 000
-                throw new NotImplementedException();
-
-                var immediate = self.data(ref csip, w);
-                if (ds) // short form, sign extend
-                {
-                    immediate = (ushort)(short)(sbyte)immediate;
-                }
-                result = immediate + self.GetModRMData(w, addr, is_reg, reg_modrm);
-                self.SetModRMData((ushort)result, w, addr, is_reg, reg_modrm);
+                Debug.Assert(self.insExtOpcode == 0b000);
+                result = self.GetModRMData() + self.ins_data;
+                self.SetModRMData((ushort)result);
             }
             else if ((self.insByte & 0b11111110) == 0b00000100)
             {

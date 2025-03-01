@@ -31,27 +31,27 @@ namespace Emulate8086.Processor
             return GetSeg(seg_prefix);
         }
 
-        public void SetModRMData(ushort data, bool? w, int addr, bool is_reg, Register reg)
+        public void SetModRMData(ushort data)
         {
-            if (is_reg)
+            if (modrm_is_reg)
             {
-                SetReg(reg, data, w);
+                SetReg(modrm_register, data, is_word);
             }
             else
             {
-                memory.setDataAt(addr, data, w);
+                memory.setDataAt(modrm_addr, data, is_word);
             }
         }
 
-        public ushort GetModRMData(bool w, int addr, bool is_reg, Register reg)
+        public ushort GetModRMData()
         {
-            if (is_reg)
+            if (modrm_is_reg)
             {
-                return GetReg(reg, w);
+                return GetReg(modrm_register, insW);
             }
             else
             {
-                return memory.dataAt(addr, w);
+                return memory.dataAt(modrm_addr, insW);
             }
         }
 
@@ -149,6 +149,9 @@ namespace Emulate8086.Processor
 
         InstructionDecoderFlags instructionFlags;
         PrefixFlags prefix;
+        bool is_prefix;
+        private bool has_ins_reg;
+        private bool has_ins_seg;
         Register insReg;
         bool insW;
         bool insD;
@@ -166,6 +169,10 @@ namespace Emulate8086.Processor
         Register modrm_register;
         private Register effective_prefix;
         short disp;
+        private bool wflag_enabled;
+        private bool b_accepted_flag;
+        private bool w_accepted_flag;
+        private bool is_immediate_word;
 
         private PrefixFlags current_segment =>
             effective_prefix switch
@@ -180,7 +187,6 @@ namespace Emulate8086.Processor
         {
             instructionFlags = flags;
 
-            prefix = PrefixFlags.None;
             insReg = Register.None;
             insW = false;
             insD = false;
@@ -193,11 +199,15 @@ namespace Emulate8086.Processor
             ins_seg = 0;
             modrm = 0;
             disp = 0;
+            is_prefix = false;
+            has_ins_reg = false;
+            has_ins_seg = false;
 
 
             // Check for instruction prefixes.
             if ((flags & InstructionDecoderFlags.Pfix) != 0)
             {
+                is_prefix = true;
                 switch (ins)
                 {
                     case Instruction.CSPrefix:
@@ -231,6 +241,7 @@ namespace Emulate8086.Processor
             var flag_mask = 1;  // Position of next flag
             if ((flags & InstructionDecoderFlags.Reg) != 0)
             {
+                has_ins_reg = true;
                 insReg = (Register)(insByte & 0b00000111);
                 // W flag could be positioned after embedded register.
                 flag_mask = 0b00001000;
@@ -238,6 +249,7 @@ namespace Emulate8086.Processor
             // Decode embedded segment register.
             else if ((flags & InstructionDecoderFlags.Seg) != 0)
             {
+                has_ins_seg = true;
                 insReg = (Register)((insByte & 0b00011000) >> 3);
             }
 
@@ -279,8 +291,8 @@ namespace Emulate8086.Processor
             }
             if ((instructionFlags & InstructionDecoderFlags.Word) != 0)
             {
-                // Sometimes, the W flag refers to a different operation, not the data byte
-                if (insW && (instructionFlags & InstructionDecoderFlags.Word) != 0)
+                // Sometimes, the W flag refers to a different operation, not the data byte; so don't use that.
+                if (insW)
                 {
                     ins_data |= (ushort)(memory[csip++] << 8);
                 }
@@ -307,6 +319,11 @@ namespace Emulate8086.Processor
             {
                 disp |= (short)(ushort)(memory[csip++] << 8);
             }
+
+            var wflag_enabled = (instructionFlags & InstructionDecoderFlags.W) != 0;
+            var b_accepted_flag = (instructionFlags & InstructionDecoderFlags.Byte) != 0;
+            var w_accepted_flag = (instructionFlags & InstructionDecoderFlags.Word) != 0;
+            is_immediate_word = w_accepted_flag ? wflag_enabled ? insW : true : false;
         }
 
         public void Clock()
@@ -323,10 +340,10 @@ namespace Emulate8086.Processor
             var impl = instructionImpls[ins];
 
             // Call the instruction
-            prefix = PrefixFlags.None;
             impl(this);
-            if (prefix == PrefixFlags.None)
+            if (!is_prefix)
             {
+                // Done with any prefix.
                 prefix = PrefixFlags.None;
             }
         }
