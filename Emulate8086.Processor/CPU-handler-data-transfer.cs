@@ -20,15 +20,22 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-22
             // - Table 4-13. Machine Instruction Decoding Guide, p. 4-27
 
-            // 11111111 mod 110 rm
-            // Register/memory
-            // Part of Group 2 instructions
-
-            // 01010 reg
-            // Register
-            
-            // 000 seg 110
-            // Segment register
+            if (insByte == 0xFF)
+            {
+                // 11111111 mod 110 rm
+                // Register/memory
+                // Part of Group 2 instructions
+            }
+            else if (insByte >> 3 == 0b01010)
+            {
+                // 01010 reg
+                // Register
+            }
+            else if (insByte >> 5 == 0b000)
+            {
+                // 000 seg 110
+                // Segment register
+            }
 
             throw new NotImplementedException();
         }
@@ -43,14 +50,21 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-62            
             // - Table 4-12. 8086 Instruction Encoding, p. 4-22
 
-            // 10001111 mod 000 rm
-            // Register/memory
-
-            // 01011 reg
-            // Register
-
-            // 000 seg 111
-            // Segment register
+            if (insByte == 0b10001111)
+            {
+                // 10001111 mod 000 rm
+                // Register/memory
+            }
+            else if (insByte >> 3 == 0b01011)
+            {
+                // 01011 reg
+                // Register
+            }
+            else if ((insByte & 0b111_00_111) == 0b000_00_111)
+            {
+                // 000 seg 111
+                // Segment register
+            }
 
             throw new NotImplementedException();
         }
@@ -65,11 +79,17 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-67
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            // 1000011w mod reg rm
-            // Register/memory with register
+            if ((insByte & 0b1111111_0) == 0b1000011_0)
+            {
+                // 1000011w mod reg rm
+                // Register/memory with register
+            }
+            else if ((insByte >> 3) == 0b10010)
+            {
+                // 10010 reg 
+                // Register with accumulator
+            }
 
-            // 10010 reg 
-            // Register with accumulator
             throw new NotImplementedException();
         }
 
@@ -100,11 +120,16 @@ namespace Emulate8086.Processor
 
             // Input to AL/AX from...
 
-            // 1110 010w | port
-            // Fixed port
-
-            // 1110 110w
-            // Variable port (DX)
+            if ((insByte & 0b1111_111_0) == 0b1110_010_0)
+            {
+                // 1110 010w | port
+                // Fixed port
+            }
+            else if ((insByte & 0b1111_111_0) == 0b1110_110_0)
+            {
+                // 1110 110w
+                // Variable port (DX)
+            }
 
             throw new NotImplementedException();
         }
@@ -121,11 +146,16 @@ namespace Emulate8086.Processor
 
             // Output from AL/AX to...
 
-            // 1110011w port
-            // Fixed port
-
-            // 1110110w
-            // Variable port (DX)
+            if ((insByte & 0b1111_111_0) == 0b1110_011_0)
+            {
+                // 1110011w port
+                // Fixed port
+            }
+            else if ((insByte & 0b1111_111_0) == 0b1110_110_0)
+            {
+                // 1110110w
+                // Variable port (DX)
+            }
             throw new NotImplementedException();
         }
         #endregion
@@ -141,6 +171,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
+            
             // Load effective address to register
             // 10001101 mod reg r/m
             throw new NotImplementedException();

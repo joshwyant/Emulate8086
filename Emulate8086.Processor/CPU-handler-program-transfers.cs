@@ -9,11 +9,6 @@ namespace Emulate8086.Processor
     public partial class CPU
     {
         #region Unconditional Transfers
-        #endregion
-
-        #region Conditional Transfers
-        #endregion
-
         private static void HandleCALL(CPU self)
         {
             // IBM Personal Computer Hardware Reference Library - Technical
@@ -41,71 +36,64 @@ namespace Emulate8086.Processor
             throw new NotImplementedException();
         }
 
-        private static void HandleINT(CPU self)
+        private static void HandleRET(CPU self)
         {
             // IBM Personal Computer Hardware Reference Library - Technical
-            // Reference, 8088 Instruction Reference, p. B-14
+            // Reference, 8088 Instruction Reference, p. B-12
 
             // Intel 8086 Family User's Manual October 1979
-            // - 2.7 Instruction Set, p. 2-46
-            // - Table 2-21. Instruction Set Reference Data, p. 2-56
+            // - 2.7 Instruction Set, p. 2-45
+            // - Table 2-21. Instruction Set Reference Data, p. 2-64
+            // - Table 4-12. 8086 Instruction Encoding, p. 4-26
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
-            // ODITSZAPC
-            //   00     
-            
-            // interrupt
-            // type specified
-            // 11001101 type
+            // Return from CALL
+            // Within segment
+            // 11000011
 
-            // type 3
-            // 11001100
+            // Within segment adding immediate to SP
+            // 11000010 data-lo data-hi
+
+            // Intersegment
+            // 11001011
+
+            // Intersegment, adding immediate to SP
+            // 11000010 data-lo data-hi
+
             throw new NotImplementedException();
         }
 
-        private static void HandleINTO(CPU self)
+        private static void HandleJMP(CPU self)
         {
             // IBM Personal Computer Hardware Reference Library - Technical
-            // Reference, 8088 Instruction Reference, p. B-14
+            // Reference, 8088 Instruction Reference, p. B-11
 
             // Intel 8086 Family User's Manual October 1979
-            // - 2.7 Instruction Set, p. 2-47
-            // - Table 2-21. Instruction Set Reference Data, p. 2-56
+            // - 2.7 Instruction Set, p. 2-45
+            // - Table 2-21. Instruction Set Reference Data, p. 2-58
+            // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
-            // ODITSZAPC
-            //   00     
-            
-            // interrupt on overflow
-            // 11001110
+            // Direct within segment
+            // 11101001 disp-low disp-high
+
+            // Direct within segment short
+            // 11101011 disp
+
+            // Indirect within segment
+            // 11111111 mod 100 r/m
+            // Part of Group 2 instructions
+
+            // Direct intersegment
+            // 11101010 off-lo off-hi seg-lo seg-hi
+
+            // Inderect intersegment
+            // 11111111 mod 101 r/m
+            // Part of Group 2 instructions
             throw new NotImplementedException();
         }
+        #endregion
 
-        private static void HandleIRET(CPU self)
-        {
-            // IBM Personal Computer Hardware Reference Library - Technical
-            // Reference, 8088 Instruction Reference, p. B-14
-
-            // Intel 8086 Family User's Manual October 1979
-            // - 2.7 Instruction Set, p. 2-47
-            // - Table 2-21. Instruction Set Reference Data, p. 2-56
-
-            // ODITSZAPC
-            // RRRRRRRRR
-            
-            // interrupt return
-            // 11001111
-            throw new NotImplementedException();
-        }
-
-        private void jmp(short disp) => csip = csip_start + disp;
-
-        private void jmp_disp() => jmp(disp);
-
-        private void jmp_disp_on(bool cond)
-        {
-            if (cond) jmp_disp();
-        }
-
+        #region Conditional Transfers
         private static void HandleJA(CPU self)
         {
             HandleJNBE(self);
@@ -157,23 +145,6 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-57
 
             HandleJB(self);
-        }
-
-        private static void HandleJCXZ(CPU self)
-        {
-            // IBM Personal Computer Hardware Reference Library - Technical
-            // Reference
-            // - 8088 Instruction Reference, p. B-13
-            // - 8088 Conditional Transfer Operations, B-14
-
-            // Intel 8086 Family User's Manual October 1979
-            // - 2.7 Instruction Set, p. 2-46
-            // - Table 2-21. Instruction Set Reference Data, p. 2-57
-            // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-
-            // jump on cx zero
-            // 11100011 disp
-            self.jmp_disp_on(self.cx == 0);
         }
 
         private static void HandleJE(CPU self)
@@ -233,35 +204,6 @@ namespace Emulate8086.Processor
             // JLE/JNG jump on less or equal/not greater
             // 01111110 disp
             self.jmp_disp_on(self.SF != self.OF || self.ZF);
-        }
-
-        private static void HandleJMP(CPU self)
-        {
-            // IBM Personal Computer Hardware Reference Library - Technical
-            // Reference, 8088 Instruction Reference, p. B-11
-
-            // Intel 8086 Family User's Manual October 1979
-            // - 2.7 Instruction Set, p. 2-45
-            // - Table 2-21. Instruction Set Reference Data, p. 2-58
-            // - Table 4-12. 8086 Instruction Encoding, p. 4-26
-
-            // Direct within segment
-            // 11101001 disp-low disp-high
-
-            // Direct within segment short
-            // 11101011 disp
-
-            // Indirect within segment
-            // 11111111 mod 100 r/m
-            // Part of Group 2 instructions
-
-            // Direct intersegment
-            // 11101010 off-lo off-hi seg-lo seg-hi
-
-            // Inderect intersegment
-            // 11111111 mod 101 r/m
-            // Part of Group 2 instructions
-            throw new NotImplementedException();
         }
 
         private static void HandleJNA(CPU self)
@@ -489,7 +431,9 @@ namespace Emulate8086.Processor
         {
             HandleJE(self);
         }
+        #endregion
 
+        #region Iteration Control
         private static void HandleLOOP(CPU self)
         {
             // IBM Personal Computer Hardware Reference Library - Technical
@@ -545,40 +489,91 @@ namespace Emulate8086.Processor
             HandleLOOPE(self);
         }
 
-        private static void HandleMOVSB(CPU self)
-        {
-            // Intel 8086 Family User's Manual October 1979
-            // - Table 2-21. Instruction Set Reference Data, p. 2-61
-
-            // 1010010w
-            HandleMOVS(self);
-        }
-
-        private static void HandleRET(CPU self)
+        private static void HandleJCXZ(CPU self)
         {
             // IBM Personal Computer Hardware Reference Library - Technical
-            // Reference, 8088 Instruction Reference, p. B-12
+            // Reference
+            // - 8088 Instruction Reference, p. B-13
+            // - 8088 Conditional Transfer Operations, B-14
 
             // Intel 8086 Family User's Manual October 1979
-            // - 2.7 Instruction Set, p. 2-45
-            // - Table 2-21. Instruction Set Reference Data, p. 2-64
-            // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+            // - 2.7 Instruction Set, p. 2-46
+            // - Table 2-21. Instruction Set Reference Data, p. 2-57
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
-            // Return from CALL
-            // Within segment
-            // 11000011
+            // jump on cx zero
+            // 11100011 disp
+            self.jmp_disp_on(self.cx == 0);
+        }
+        #endregion
 
-            // Within segment adding immediate to SP
-            // 11000010 data-lo data-hi
+        #region Interrupt Instructions
+        private static void HandleINT(CPU self)
+        {
+            // IBM Personal Computer Hardware Reference Library - Technical
+            // Reference, 8088 Instruction Reference, p. B-14
 
-            // Intersegment
-            // 11001011
+            // Intel 8086 Family User's Manual October 1979
+            // - 2.7 Instruction Set, p. 2-46
+            // - Table 2-21. Instruction Set Reference Data, p. 2-56
+            // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
-            // Intersegment, adding immediate to SP
-            // 11000010 data-lo data-hi
+            // ODITSZAPC
+            //   00     
+            
+            // interrupt
+            // type specified
+            // 11001101 type
 
+            // type 3
+            // 11001100
             throw new NotImplementedException();
         }
+
+        private static void HandleINTO(CPU self)
+        {
+            // IBM Personal Computer Hardware Reference Library - Technical
+            // Reference, 8088 Instruction Reference, p. B-14
+
+            // Intel 8086 Family User's Manual October 1979
+            // - 2.7 Instruction Set, p. 2-47
+            // - Table 2-21. Instruction Set Reference Data, p. 2-56
+
+            // ODITSZAPC
+            //   00     
+            
+            // interrupt on overflow
+            // 11001110
+            throw new NotImplementedException();
+        }
+
+        private static void HandleIRET(CPU self)
+        {
+            // IBM Personal Computer Hardware Reference Library - Technical
+            // Reference, 8088 Instruction Reference, p. B-14
+
+            // Intel 8086 Family User's Manual October 1979
+            // - 2.7 Instruction Set, p. 2-47
+            // - Table 2-21. Instruction Set Reference Data, p. 2-56
+
+            // ODITSZAPC
+            // RRRRRRRRR
+            
+            // interrupt return
+            // 11001111
+            throw new NotImplementedException();
+        }
+        #endregion
+
+        #region Helpers
+        private void jmp(short disp) => csip = csip_start + disp;
+
+        private void jmp_disp() => jmp(disp);
+
+        private void jmp_disp_on(bool cond)
+        {
+            if (cond) jmp_disp();
+        }
+        #endregion
     }
 }
