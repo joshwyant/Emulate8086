@@ -22,6 +22,11 @@ namespace Emulate8086.Processor
 
             if (insByte == 0xFF)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMOpcode
+                );
+
                 // 11111111 mod 110 rm
                 // Register/memory
                 // Part of Group 2 instructions
@@ -30,12 +35,20 @@ namespace Emulate8086.Processor
             }
             else if (insByte >> 3 == 0b01010)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.Reg
+                );
+
                 // 01010 reg
                 // Register
             }
             else
             {
                 Debug.Assert(insByte >> 5 == 0b000);
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.Seg
+                );
+
                 // 000 seg 110
                 // Segment register
             }
@@ -55,6 +68,11 @@ namespace Emulate8086.Processor
 
             if (insByte == 0b10001111)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMOpcode
+                );
+
                 // 10001111 mod 000 rm
                 // Register/memory
 
@@ -62,12 +80,19 @@ namespace Emulate8086.Processor
             }
             else if (insByte >> 3 == 0b01011)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.Reg
+                );
+
                 // 01011 reg
                 // Register
             }
             else
             {
                 Debug.Assert((insByte & 0b111_00_111) == 0b000_00_111);
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.Seg
+                );
                 // 000 seg 111
                 // Segment register
             }
@@ -87,12 +112,21 @@ namespace Emulate8086.Processor
 
             if ((insByte & 0b1111111_0) == 0b1000011_0)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMReg
+                );
+
                 // 1000011w mod reg rm
                 // Register/memory with register
             }
             else
             {
                 Debug.Assert((insByte >> 3) == 0b10010);
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.Reg
+                );
                 // 10010 reg 
                 // Register with accumulator
             }
@@ -131,12 +165,20 @@ namespace Emulate8086.Processor
 
             if ((insByte & 0b1111_111_0) == 0b1110_010_0)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.Word // TODO: Make sure this works
+                );
+
                 // 1110 010w | port
                 // Fixed port
             }
             else
             {
                 Debug.Assert((insByte & 0b1111_111_0) == 0b1110_110_0);
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W
+                );
                 // 1110 110w
                 // Variable port (DX)
             }
@@ -158,12 +200,19 @@ namespace Emulate8086.Processor
 
             if ((insByte & 0b1111_111_0) == 0b1110_011_0)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.Word // TODO: Make sure this works
+                );
                 // 1110011w port
                 // Fixed port
             }
             else
             {
                 Debug.Assert((insByte & 0b1111_111_0) == 0b1110_110_0);
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W
+                );
                 // 1110110w
                 // Variable port (DX)
             }
@@ -184,6 +233,11 @@ namespace Emulate8086.Processor
 
             Debug.Assert(0b1000_1101 == insByte);
 
+            self.DecodeInstruction(
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMReg
+            );
+
             // Load effective address to register
             // 10001101 mod reg r/m
             throw new NotImplementedException();
@@ -199,6 +253,11 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
 
             Debug.Assert(0b1100_0101 == insByte);
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMReg
+            );
 
             // Load pointer to DS
             // 11000101 mod reg r/m
@@ -216,6 +275,11 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
             Debug.Assert(0b1100_0100 == insByte);
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMReg
+            );
 
             // Load pointer to ES
             // 11000100 mod reg r/m

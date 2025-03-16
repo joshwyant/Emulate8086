@@ -290,11 +290,25 @@ namespace Emulate8086.Processor
             
             if ((insByte & 0b11111100) == 0b00101000)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.D |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMReg
+                );
                 // r/m and r to either
                 // 001010dw mod reg r/m
             }
             else if ((insByte & 0b11111100) == 0b10000000)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.S |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMOpcode |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word
+                );
                 // imm to reg/mem
                 // 100000sw mod 101 r/m data, data if s:w=01
                 // Part of Immediate group
@@ -304,6 +318,12 @@ namespace Emulate8086.Processor
             else
             {
                 Debug.Assert((insByte & 0b11111110) == 0b00101100);
+
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word
+                );
 
                 // imm from accum
                 // 0010110w data, data if w=1
@@ -327,11 +347,27 @@ namespace Emulate8086.Processor
             // Subtract with borrow
             if ((insByte & 0b111111_00) == 0b000110_00)
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.D |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMReg
+                );
+
                 // r/m and r to either
                 // 000110dw mod reg r/m
             }
             else if (0b100000_00 == (insByte & 0b111111_00))
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.S |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMOpcode |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word
+                );
+
                 // imm to reg/mem
                 // 100000sw mod 011 r/m data, data if s:w=01
                 // Part of Immediate group
@@ -341,6 +377,12 @@ namespace Emulate8086.Processor
             else
             {
                 Debug.Assert(0b0001110_0 == (insByte & 0b1111111_0));
+
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word
+                );
 
                 // imm from accum
                 // 0001110w data, data if w=1
@@ -364,6 +406,12 @@ namespace Emulate8086.Processor
 
             if (0b1111111_0 == (insByte & 0b1111111_0))
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMOpcode
+                );
+
                 // 1111111w mod 001 r/m
                 // Part of Group 2 instructions
 
@@ -372,6 +420,10 @@ namespace Emulate8086.Processor
             else
             {
                 Debug.Assert(0b01001_000 == (insByte & 0b11111_000));
+
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.Reg
+                );
                 // 01001 reg
             }
 
@@ -392,6 +444,12 @@ namespace Emulate8086.Processor
             // X   XXXX1* (*C is 0 if destination=0)
             
             Debug.Assert(0b1111_011_0 == (insByte & 0b1111111_0));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W |
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMOpcode
+            );
 
             // 1111011w mod 011 r/m
             // Part of Group 1 instructions
@@ -416,11 +474,27 @@ namespace Emulate8086.Processor
 
             if (0b0011_10_00 == (insByte & 0b111111_00))
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.D |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMReg
+                );
+
                 // Register/memory and register
                 // 001110dw mod reg r/m
             }
             else if (0b1000_00_00 == (insByte & 0b111111_00))
             {
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.S |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.ModRM |
+                    InstructionDecoderFlags.ModRMOpcode |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word
+                );
+
                 // Immediate with register/memory
                 // 100000sw mod 111 r/m data, data if s:w =01
                 // Part of Immediate group
@@ -430,6 +504,13 @@ namespace Emulate8086.Processor
             else
             {
                 Debug.Assert(0b0011_110_0 == (insByte & 0b1111111_0));
+
+                self.DecodeInstruction(
+                    InstructionDecoderFlags.D |
+                    InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.Byte |
+                    InstructionDecoderFlags.Word
+                );
 
                 // Immediate with accumulator
                 // 0011110w data, data if w=1
@@ -495,6 +576,12 @@ namespace Emulate8086.Processor
             
             Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
 
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W |
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMOpcode
+            );
+
             // Multiply unsigned
             // 1111011w mod 100 r/m
             // Part of Group 1 instructions
@@ -518,6 +605,12 @@ namespace Emulate8086.Processor
             // X   UUUUX
             
             Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+        
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W |
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMOpcode
+            );
 
             // Integer multiply (signed)
             // 1111011w mod 101 r/m
@@ -569,6 +662,13 @@ namespace Emulate8086.Processor
             // U   UUUUU
 
             Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W |
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMOpcode
+            );
+
             // Divide (unsigned)
             // 1111011w mod 110 r/m
             // Part of Group 1 instructions
@@ -591,6 +691,13 @@ namespace Emulate8086.Processor
             // U   UUUUU
             
             Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W |
+                InstructionDecoderFlags.ModRM |
+                InstructionDecoderFlags.ModRMOpcode
+            );
+            
             // Integer divide (signed)
             // 1111011w mod 111 r/m
             // Part of Group 1 instructions

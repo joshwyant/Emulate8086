@@ -51,6 +51,10 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
             Debug.Assert(0b1111_001_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.Z
+            );
             // Repeat
             // 1111001z
             throw new NotImplementedException();
@@ -85,6 +89,10 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
             Debug.Assert(0b1010_010_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W
+            );
             // 1010010w
             throw new NotImplementedException();
         }
@@ -103,6 +111,10 @@ namespace Emulate8086.Processor
             // X   XXXXX
 
             Debug.Assert(0b1010_011_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W
+            );
             // Compare string
             // 1010011w
             
@@ -123,6 +135,10 @@ namespace Emulate8086.Processor
             // X   XXXXX
             
             Debug.Assert(0b1010_111_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W
+            );
             // Scan string
             // 1010111w
             throw new NotImplementedException();
@@ -139,6 +155,10 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
             Debug.Assert(0b1010_110_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W
+            );
             // Load string
             // 1010110w
             throw new NotImplementedException();
@@ -155,6 +175,10 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
             Debug.Assert(0b1010_101_0 == (insByte & 0b11111110));
+
+            self.DecodeInstruction(
+                InstructionDecoderFlags.W
+            );
             // Store string
             // 1010101w
             throw new NotImplementedException();

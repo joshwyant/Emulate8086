@@ -378,6 +378,10 @@ namespace Emulate8086.Processor
             
             Debug.Assert(0b1101_1_000 == (insByte & 0b11111_000));
 
+            self.DecodeInstruction(
+                InstructionDecoderFlags.ModRM
+            );
+
             // Escape (to external device)
             // 11011xxx mod xxx r/m
             throw new NotImplementedException();
