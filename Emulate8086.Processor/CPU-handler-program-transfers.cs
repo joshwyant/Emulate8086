@@ -19,19 +19,35 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-52
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
-            // Direct within segment
-            // 11101000 disp-low disp-high
-
-            // Inderect within segment
-            // 11111111 mod 010 r/m
-            // Part of Group 2 instructions
-
-            // Direct intersegment
-            // 10011010 offs-low offs-hi seg-lo seg-hi
-
-            // Inderect intersegment
-            // 11111111 mod 011 r/m
-            // Part of Group 2 instructions
+            switch (insByte)
+            {
+                case 0b1110_1000:
+                    // Direct within segment
+                    // 11101000 disp-low disp-high
+                    break;
+                case 0b1111_1111:
+                    if (self.insExtOpcode == 0b010)
+                    {
+                        // Inderect within segment
+                        // 11111111 mod 010 r/m
+                        // Part of Group 2 instructions
+                    }
+                    else
+                    {
+                        // Inderect intersegment
+                        // 11111111 mod 011 r/m
+                        // Part of Group 2 instructions
+                        Debug.Assert(self.insExtOpcode == 0b011);
+                    }
+                    break;
+                case 0b1001_1010:
+                    // Direct intersegment
+                    // 10011010 offs-low offs-hi seg-lo seg-hi
+                    break;
+                default:
+                    Debug.Assert(false);
+                    break;
+            }
 
             throw new NotImplementedException();
         }
@@ -47,18 +63,29 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
-            // Return from CALL
-            // Within segment
-            // 11000011
-
-            // Within segment adding immediate to SP
-            // 11000010 data-lo data-hi
-
-            // Intersegment
-            // 11001011
-
-            // Intersegment, adding immediate to SP
-            // 11000010 data-lo data-hi
+            switch (insByte)
+            {
+                case 0b1100_0011:
+                    // Return from CALL
+                    // Within segment
+                    // 11000011
+                    break;
+                case 0b1100_0010:
+                    // Within segment adding immediate to SP
+                    // 11000010 data-lo data-hi
+                    break;
+                case 0b1100_1001:
+                    // Intersegment
+                    // 11001011
+                    break;
+                case 0b1100_0010:
+                    // Intersegment, adding immediate to SP
+                    // 11000010 data-lo data-hi
+                    break;
+                default:
+                    Debug.Assert(false);
+                    break;
+            }
 
             throw new NotImplementedException();
         }
@@ -73,22 +100,38 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-58
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
-            // Direct within segment
-            // 11101001 disp-low disp-high
-
-            // Direct within segment short
-            // 11101011 disp
-
-            // Indirect within segment
-            // 11111111 mod 100 r/m
-            // Part of Group 2 instructions
-
-            // Direct intersegment
-            // 11101010 off-lo off-hi seg-lo seg-hi
-
-            // Inderect intersegment
-            // 11111111 mod 101 r/m
-            // Part of Group 2 instructions
+            switch (insByte)
+            {
+                case 0b1110_1001:
+                    // Direct within segment
+                    // 11101001 disp-low disp-high
+                    break;
+                case 0b1110_1011:
+                    // Direct within segment short
+                    // 11101011 disp
+                    break;
+                case 0b1111_1111:
+                    if (self.insExtOpcode == 0b100)
+                    {
+                        // Indirect within segment
+                        // 11111111 mod 100 r/m
+                        // Part of Group 2 instructions
+                    }
+                    else
+                    {
+                        // Inderect intersegment
+                        // 11111111 mod 101 r/m
+                        // Part of Group 2 instructions
+                    }
+                    break;
+                case 0b1110_1010:
+                    // Direct intersegment
+                    // 11101010 off-lo off-hi seg-lo seg-hi
+                    break;
+                default:
+                    Debug.Assert(false);
+                    break;
+            }
             throw new NotImplementedException();
         }
         #endregion
@@ -119,6 +162,9 @@ namespace Emulate8086.Processor
 
             // logic: https://wikidev.in/wiki/assembly/8086/JNAE
             // jb/jnae = Jump on below/not above or equal
+
+            Debug.Assert(0b0111_0010 == insByte);
+            
             // 01110010 disp
             self.jmp_disp_on(self.CF);
         }
@@ -133,6 +179,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-57
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+
+            Debug.Assert(0b0111_0110 == insByte);
 
             // jbe/jna jump on below or equal/not above
             // 01110110 disp
@@ -157,6 +205,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-57
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+
+            Debug.Assert(0b0111_0100 == insByte);
 
             // JE/JZ jump on equal/zero
             // 01110100 disp
@@ -184,6 +234,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-57
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            Debug.Assert(0b0111_1100 == insByte);
+
             // Logic: https://wikidev.in/wiki/assembly/8086/JL
             // JL/JNGE jump on less/not greater or equal
             // 01111100 disp
@@ -200,6 +252,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-58
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+
+            Debug.Assert(0b01111110 == insByte);
 
             // JLE/JNG jump on less or equal/not greater
             // 01111110 disp
@@ -227,6 +281,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-56
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            Debug.Assert(0b0111_0011 == insByte);
+
             // Logic: https://wikidev.in/wiki/assembly/8086/jnb
             // jnb/jae Jump on not below/above or equal
             // 01110011 disp
@@ -243,6 +299,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-56
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+
+            Debug.Assert(0b0111_0111 == insByte);
 
             // jnbe/ja jump on not below or equal/above
             // 01110111 disp
@@ -267,6 +325,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-58
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+
+            Debug.Assert(0b0111_0101 == insByte);
 
             // jne/jnz jump on not equal/not zero
             // 01110101 disp
@@ -294,6 +354,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-57
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            Debug.Assert(0b0111_1101 == insByte);
+
             // Logic: https://wikidev.in/wiki/assembly/8086/jnl
             // jnl/jnge jump on not less/greater or equal
             // 01111101 disp
@@ -311,6 +373,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-57
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            Debug.Assert(0b0111_1111 == insByte);
+
             // JNLE/JG jump on not less or equal/greater
             // 01111111 disp
             self.jmp_disp_on((self.SF == self.OF) || self.ZF);
@@ -326,6 +390,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-58
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+
+            Debug.Assert(0b0111_0001 == insByte);
 
             // jump on not overflow
             // 01110001 disp
@@ -343,6 +409,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-58
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            Debug.Assert(0b0111_1011 == insByte);
+
             // jnp/jpo jump on not parity/parity odd
             // 01111011 disp
             self.jmp_disp_on(!self.PF);
@@ -358,6 +426,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-58
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
+
+            Debug.Assert(0b0111_1001 == insByte);
 
             // jump on not sign
             // 01111001 disp
@@ -380,6 +450,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            Debug.Assert(0b0111_0000 == insByte);
+
             // jump on overflow
             // 01110000 disp
             self.jmp_disp_on(self.OF);
@@ -395,6 +467,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
+
+            Debug.Assert(0b0111_1010 == insByte);
 
             // jp/jpe jump on parity/parity even
             // 01111010 disp
@@ -422,6 +496,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            Debug.Assert(0b0111_1000 == insByte);
+
             // Jump on sign
             // 01111000 disp
             self.jmp_disp_on(self.SF);
@@ -444,6 +520,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-60
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
+            Debug.Assert(0b1110_0010 == insByte);
+
             // loop cx times
             // 11100010 disp
             throw new NotImplementedException();
@@ -458,6 +536,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-45
             // - Table 2-21. Instruction Set Reference Data, p. 2-60
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
+
+            Debug.Assert(0b1110_0001 == insByte);
 
             // loopz/loope loop while zero/equal
             // 11100001 disp
@@ -478,6 +558,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-46
             // - Table 2-21. Instruction Set Reference Data, p. 2-60
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
+
+            Debug.Assert(0b1110_0000 == insByte);
 
             // loopnz/loopne loop while not zero/not equal
             // 11100000 disp
@@ -501,6 +583,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-57
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
+            Debug.Assert(0b1110_0011 == insByte);
+
             // jump on cx zero
             // 11100011 disp
             self.jmp_disp_on(self.cx == 0);
@@ -520,13 +604,23 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             //   00     
-            
-            // interrupt
-            // type specified
-            // 11001101 type
 
-            // type 3
-            // 11001100
+            switch (insByte)
+            {
+                case 0b1100_1101:
+                    // interrupt
+                    // type specified
+                    // 11001101 type
+                    break;
+                case 0b1100_1100:
+                    // type 3
+                    // 11001100
+                    break;
+                default:
+                    Debug.Assert(false);
+                    break;
+            }
+
             throw new NotImplementedException();
         }
 
@@ -541,6 +635,8 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             //   00     
+
+            Debug.Assert(0b1100_1110 == insByte);
             
             // interrupt on overflow
             // 11001110
@@ -558,6 +654,8 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // RRRRRRRRR
+
+            Debug.Assert(0b1100_1111 == insByte);
             
             // interrupt return
             // 11001111

@@ -19,8 +19,13 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-62
             // - Table 4-12. 8086 Instruction Encoding, p. 4-24
 
+            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110))
+
             // 1111011w mod 010 r/m
             // Part of Group 1 instructions
+
+            Debug.Assert(self.insExtOpcode == 0b010);
+
             throw new NotImplementedException();
         }
 
@@ -37,14 +42,24 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // 0   XXUX0
 
-            // Register/memory and register to either
-            // 001000dw mod reg r/m
+            if (0b0010_00_00 == (insByte & 0b11111100))
+            {
+                // Register/memory and register to either
+                // 001000dw mod reg r/m
+            }
+            else if (0b1000_00_00 == (insByte & 0b11111110))
+            {
+                // Immediate to register/memory
+                // 1000000w mod 100 r/m data, data if w=1
 
-            // Immediate to register/memory
-            // 1000000w mod 100 r/m data, data if w=1
-
-            // Immediate to accumulator
-            // 0010010w data, data if w=1
+                Debug.Assert(self.insExtOpcode == 0b100);
+            }
+            else
+            {
+                Debug.Assert(0b0010_010_0 == (insByte & 0b11111110));
+                // Immediate to accumulator
+                // 0010010w data, data if w=1
+            }
             throw new NotImplementedException();
         }
 
@@ -61,15 +76,26 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // 0   XXUX0
             
-            // Register/memory and register to either
-            // 000010dw mod reg r/m
+            if (0b0000_10_00 == (insByte & 0b11111100))
+            {
+                // Register/memory and register to either
+                // 000010dw mod reg r/m
+            }
+            else if (0b1000_000_0 == (insByte & 0b11111110))
+            {
+                // Immedate to register/memory
+                // 1000000w mod 001 r/m data, data if w=1
+                // Part of Immediate group
 
-            // Immedate to register/memory
-            // 1000000w mod 001 r/m data, data if w=1
-            // Part of Immediate group
+                Debug.Assert(self.insExtOpcode == 0b001);
+            }
+            else
+            {
+                Debug.Assert(0b0000_110_0 == (insByte & 0b11111110));
 
-            // Immediate to accumulator
-            // 0000110w data data if w = 1
+                // Immediate to accumulator
+                // 0000110w data data if w = 1
+            }
             throw new NotImplementedException();
         }
 
@@ -86,15 +112,26 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // 0   XXUX0
             
-            // Register/memory and register to either
-            // 001100dw mod reg r/m
+            if (0b0011_00_00 == (insByte & 0b11111100))
+            {
+                // Register/memory and register to either
+                // 001100dw mod reg r/m
+            }
+            else if (0b1000_000_0 == (insByte & 0b11111110))
+            {
+                // Immediate to register/memory
+                // 1000000w mod 110 r/m data, data if w=1
+                // Part of Immediate group
 
-            // Immediate to register/memory
-            // 1000000w mod 110 r/m data, data if w=1
-            // Part of Immediate group
+                Debug.Assert(self.insExtOpcode == 0b110);
+            }
+            else
+            {
+                Debug.Assert(0b0011_010_0 == (insByte & 0b1111_1110));
 
-            // Immediate to accumulator
-            // 0011010w data, data if w=1
+                // Immediate to accumulator
+                // 0011010w data, data if w=1
+            }
             throw new NotImplementedException();
         }
 
@@ -113,15 +150,26 @@ namespace Emulate8086.Processor
             
             // And function to flags, no result
 
-            // R/m and register
-            // 1000010w mod reg r/m
+            if (0b1000_010_0 == (insByte & 0b1111_1110))
+            {
+                // R/m and register
+                // 1000010w mod reg r/m
+            }
+            else if (0b1111_011_0 == (insByte & 0b1111_1110))
+            {
+                // Immediate data and register/memory
+                // 1111011w mod 000 r/m data, data if w=1
+                // Part of Group 1 instructions
 
-            // Immediate data and register/memory
-            // 1111011w mod 000 r/m data, data if w=1
-            // Part of Group 1 instructions
+                Debug.Assert(self.insExtOpcode == 0b000);
+            }
+            else
+            {
+                Debug.Assert(0b1010_100_0 == (insByte & 0b1111_1110));
 
-            // Immediate data and accumulator
-            // 1010100w data, data if w=1
+                // Immediate data and accumulator
+                // 1010100w data, data if w=1
+            }
             throw new NotImplementedException();
         }
         #endregion
@@ -140,8 +188,13 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X       X
             
+            Debug.Assert(0b1101_00_00 == (insByte & 0b1111_1100));
+
             // 110100vw mod 100 r/m
             // Part of Shift group
+
+            Debug.Assert(self.insExtOpcode == 0b100);
+
             throw new NotImplementedException();
         }
 
@@ -157,9 +210,14 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X       X
             
+            Debug.Assert(0b1101_00_00 == (insByte & 0b1111_1100));
+            
             // Shift logical right
             // 110100vw mod 101 r/m
             // Part of Shift group
+
+            Debug.Assert(self.insExtOpcode == 0b101);
+            
             throw new NotImplementedException();
         }
 
@@ -176,8 +234,13 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXUXX
             
+            Debug.Assert(0b1101_00_00 == (insByte & 0b1111_1100));
+            
             // 110100vw mod 111 r/m
             // Part of Shift group
+
+            Debug.Assert(self.insExtOpcode == 0b111);
+                
             throw new NotImplementedException();
         }
         #endregion
@@ -195,9 +258,14 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X       X
-            
+
+            Debug.Assert(0b1101_00_00 == (insByte & 0b1111_1100));
+           
             // 110100vw mod 000 r/m
             // Part of Shift group
+
+            Debug.Assert(self.insExtOpcode == 0b000);
+
             throw new NotImplementedException();
         }
 
@@ -214,8 +282,13 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X       X
             
+            Debug.Assert(0b1101_00_00 == (insByte & 0b1111_1100));
+            
             // 110100vw mod 001 r/m
             // Part of Shift group
+
+            Debug.Assert(self.insExtOpcode == 0b001);
+
             throw new NotImplementedException();
         }
 
@@ -232,9 +305,14 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X       X
             
+            Debug.Assert(0b1101_00_00 == (insByte & 0b1111_1100));
+            
             // Rotate through carry left
             // 110100vw mod 010 r/m
             // Part of Shift group
+
+            Debug.Assert(self.insExtOpcode == 0b010);
+            
             throw new NotImplementedException();
         }
 
@@ -251,8 +329,13 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X       X
             
+            Debug.Assert(0b1101_00_00 == (insByte & 0b1111_1100));
+            
             // Rotate through carry right
             // 110100vw mod 011 r/m
+
+            Debug.Assert(self.insExtOpcode == 0b011);
+
             throw new NotImplementedException();
         }
         #endregion

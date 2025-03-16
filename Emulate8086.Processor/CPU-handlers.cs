@@ -204,6 +204,8 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             //         0
 
+            Debug.Assert(0b1111_1000 == insByte);
+
             // Clear carry
             // 11111000
             throw new NotImplementedException();
@@ -222,6 +224,8 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             //         X
 
+            Debug.Assert(0b1111_0101 == insByte);
+
             // Complement carry
             // 11110101
             throw new NotImplementedException();
@@ -239,6 +243,8 @@ namespace Emulate8086.Processor
             
             // ODITSZAPC
             //         1
+
+            Debug.Assert(0b1111_1001 == insByte);
             
             // Set carry
             // 11111001
@@ -258,6 +264,8 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             //  0       
 
+            Debug.Assert(0b1111_1100 == insByte);
+
             // Clear direction
             // 11111100
             throw new NotImplementedException();
@@ -275,6 +283,8 @@ namespace Emulate8086.Processor
             
             // ODITSZAPC
             //  1       
+
+            Debug.Assert(0b1111_1101 == insByte);
             
             // Set direction
             // 11111101
@@ -294,6 +304,8 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             //  0      
 
+            Debug.Assert(0b1111_1010 == insByte);
+
             // Clear interrupt
             // 11111010
             throw new NotImplementedException();
@@ -311,6 +323,8 @@ namespace Emulate8086.Processor
             
             // ODITSZAPC
             //   1      
+
+            Debug.Assert(0b1111_1011 == insByte);
             
             // Set interrupt
             // 11111011
@@ -328,6 +342,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-48
             // - Table 2-21. Instruction Set Reference Data, p. 2-55
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
+
+            Debug.Assert(0b1111_0100 == insByte);
             
             // halt
             // 11110100
@@ -343,6 +359,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-48
             // - Table 2-21. Instruction Set Reference Data, p. 2-67
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
+
+            Debug.Assert(0b10011011 == insByte);
             
             // 10011011
             throw new NotImplementedException();
@@ -358,6 +376,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-54
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
             
+            Debug.Assert(0b1101_1_000 == (insByte & 0b11111_000));
+
             // Escape (to external device)
             // 11011xxx mod xxx r/m
             throw new NotImplementedException();
@@ -373,6 +393,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-60
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
             
+            Debug.Assert(0b1111_0000 == insByte);
+
             // Bus lock prefix
             // 11110000
             throw new NotImplementedException();

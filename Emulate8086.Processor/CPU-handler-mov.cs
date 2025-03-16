@@ -68,6 +68,8 @@ namespace Emulate8086.Processor
             }
             else
             {
+                Debug.Assert(0b == insByte);
+                
                 // 10001100 (8C)
                 self.MovSegrToRM(ref csip);
             }

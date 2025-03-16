@@ -50,6 +50,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-63
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
+            Debug.Assert(0b1111_001_0 == (insByte & 0b11111110));
             // Repeat
             // 1111001z
             throw new NotImplementedException();
@@ -83,6 +84,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-61
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
+            Debug.Assert(0b1010_010_0 == (insByte & 0b11111110));
             // 1010010w
             throw new NotImplementedException();
         }
@@ -100,8 +102,10 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
 
+            Debug.Assert(0b1010_011_0 == (insByte & 0b11111110));
             // Compare string
             // 1010011w
+            
             throw new NotImplementedException();
         }
 
@@ -118,6 +122,7 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
             
+            Debug.Assert(0b1010_111_0 == (insByte & 0b11111110));
             // Scan string
             // 1010111w
             throw new NotImplementedException();
@@ -133,6 +138,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-60
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
+            Debug.Assert(0b1010_110_0 == (insByte & 0b11111110));
             // Load string
             // 1010110w
             throw new NotImplementedException();
@@ -148,6 +154,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-66
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
+            Debug.Assert(0b1010_101_0 == (insByte & 0b11111110));
             // Store string
             // 1010101w
             throw new NotImplementedException();

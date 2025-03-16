@@ -25,14 +25,17 @@ namespace Emulate8086.Processor
                 // 11111111 mod 110 rm
                 // Register/memory
                 // Part of Group 2 instructions
+
+                Debug.Assert(self.insExtOpcode == 0b110);
             }
             else if (insByte >> 3 == 0b01010)
             {
                 // 01010 reg
                 // Register
             }
-            else if (insByte >> 5 == 0b000)
+            else
             {
+                Debug.Assert(insByte >> 5 == 0b000);
                 // 000 seg 110
                 // Segment register
             }
@@ -54,14 +57,17 @@ namespace Emulate8086.Processor
             {
                 // 10001111 mod 000 rm
                 // Register/memory
+
+                Debug.Assert(self.insExtOpcode == 0b000);
             }
             else if (insByte >> 3 == 0b01011)
             {
                 // 01011 reg
                 // Register
             }
-            else if ((insByte & 0b111_00_111) == 0b000_00_111)
+            else
             {
+                Debug.Assert((insByte & 0b111_00_111) == 0b000_00_111);
                 // 000 seg 111
                 // Segment register
             }
@@ -84,8 +90,9 @@ namespace Emulate8086.Processor
                 // 1000011w mod reg rm
                 // Register/memory with register
             }
-            else if ((insByte >> 3) == 0b10010)
+            else
             {
+                Debug.Assert((insByte >> 3) == 0b10010);
                 // 10010 reg 
                 // Register with accumulator
             }
@@ -102,6 +109,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-32
             // - Table 2-21. Instruction Set Reference Data, p. 2-67
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
+
+            Debug.Assert(0b1101_0111 == insByte);
 
             // translate byte to al
             // 11010111
@@ -125,8 +134,9 @@ namespace Emulate8086.Processor
                 // 1110 010w | port
                 // Fixed port
             }
-            else if ((insByte & 0b1111_111_0) == 0b1110_110_0)
+            else
             {
+                Debug.Assert((insByte & 0b1111_111_0) == 0b1110_110_0);
                 // 1110 110w
                 // Variable port (DX)
             }
@@ -151,8 +161,9 @@ namespace Emulate8086.Processor
                 // 1110011w port
                 // Fixed port
             }
-            else if ((insByte & 0b1111_111_0) == 0b1110_110_0)
+            else
             {
+                Debug.Assert((insByte & 0b1111_111_0) == 0b1110_110_0);
                 // 1110110w
                 // Variable port (DX)
             }
@@ -171,7 +182,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            
+            Debug.Assert(0b1000_1101 == insByte);
+
             // Load effective address to register
             // 10001101 mod reg r/m
             throw new NotImplementedException();
@@ -185,6 +197,8 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - 2.7 Instruction Set, p. 2-32
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
+
+            Debug.Assert(0b1100_0101 == insByte);
 
             // Load pointer to DS
             // 11000101 mod reg r/m
@@ -200,6 +214,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-32
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
+
+            Debug.Assert(0b1100_0100 == insByte);
 
             // Load pointer to ES
             // 11000100 mod reg r/m
@@ -218,6 +234,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
+            Debug.Assert(0b1001_1111 == insByte);
+
             // Load AH with flags
             // 10011111
             throw new NotImplementedException();
@@ -235,6 +253,8 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             //     RRRRR
+
+            Debug.Assert(0b1001_1110 == insByte);
             
             // Store AH into flags
             // 10011110
@@ -250,6 +270,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-33
             // - Table 2-21. Instruction Set Reference Data, p. 2-63
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
+
+            Debug.Assert(0b1001_1100 == insByte);
 
             // 1001 1100
             // Push flags
@@ -268,6 +290,8 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // RRRRRRRRR
+
+            Debug.Assert(0b1001_1101 == insByte);
             
             // 1001 1101
             // Pop flags

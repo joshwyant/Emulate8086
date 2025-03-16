@@ -67,8 +67,10 @@ namespace Emulate8086.Processor
                 result = a + b;
                 self.SetModRMData((ushort)result);
             }
-            else if ((self.insByte & 0b11111110) == 0b00000100)
+            else
             {
+                Debug.Assert((self.insByte & 0b11111110) == 0b00000100);
+
                 // 0000 010w (04 - 05) | data | data if w=1
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -138,8 +140,10 @@ namespace Emulate8086.Processor
                 result += self.GetModRMData() + self.ins_data;
                 self.SetModRMData((ushort)result);
             }
-            else if ((self.insByte & 0b1111_1110) == 0b0001_0100)
+            else
             {
+                Debug.Assert((self.insByte & 0b1111_1110) == 0b0001_0100);
+
                 // 0001 010w | data | data if w=1
                 //   Immediate to accumulator
                 self.DecodeInstruction(
@@ -187,8 +191,10 @@ namespace Emulate8086.Processor
             }
             // 01000 reg
             // Reg
-            else if ((insByte & 0b1111_1000) == 0b0100_0000)
+            else
             {
+                Debug.Assert((insByte & 0b1111_1000) == 0b0100_0000);
+
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
                 );
@@ -214,6 +220,8 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // U   UUXUX
+
+            Debug.Assert(0b0011_0111 == insByte);
 
             // ASCII adjust for add
             // 00110111
@@ -247,6 +255,8 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
 
+            Debug.Assert(0b0010_0111 == insByte);
+
             // Decimal adjust for add
             // 00100111
 
@@ -278,15 +288,26 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
             
-            // r/m and r to either
-            // 001010dw mod reg r/m
+            if ((insByte & 0b11111100) == 0b00101000)
+            {
+                // r/m and r to either
+                // 001010dw mod reg r/m
+            }
+            else if ((insByte & 0b11111100) == 0b10000000)
+            {
+                // imm to reg/mem
+                // 100000sw mod 101 r/m data, data if s:w=01
+                // Part of Immediate group
 
-            // imm to reg/mem
-            // 100000sw mod 101 r/m data, data if s:w=01
-            // Part of Immediate group
+                Debug.Assert(self.insExtOpcode == 0b101);
+            }
+            else
+            {
+                Debug.Assert((insByte & 0b11111110) == 0b00101100);
 
-            // imm from accum
-            // 0010110w data, data if w=1
+                // imm from accum
+                // 0010110w data, data if w=1
+            }
             throw new NotImplementedException();
         }
 
@@ -304,16 +325,27 @@ namespace Emulate8086.Processor
             // X   XXXXX
             
             // Subtract with borrow
+            if ((insByte & 0b111111_00) == 0b000110_00)
+            {
+                // r/m and r to either
+                // 000110dw mod reg r/m
+            }
+            else if (0b100000_00 == (insByte & 0b111111_00))
+            {
+                // imm to reg/mem
+                // 100000sw mod 011 r/m data, data if s:w=01
+                // Part of Immediate group
 
-            // r/m and r to either
-            // 000110dw mod reg r/m
+                Debug.Assert(self.insExtOpcode == 0b011);
+            }
+            else
+            {
+                Debug.Assert(0b0001110_0 == (insByte & 0b1111111_0));
 
-            // imm to reg/mem
-            // 100000sw mod 011 r/m data, data if s:w=01
-            // Part of Immediate group
+                // imm from accum
+                // 0001110w data, data if w=1
+            }
 
-            // imm from accum
-            // 0001110w data, data if w=1
             throw new NotImplementedException();
         }
 
@@ -330,10 +362,18 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXX 
 
-            // 1111111w mod 001 r/m
-            // Part of Group 2 instructions
+            if (0b1111111_0 == (insByte & 0b1111111_0))
+            {
+                // 1111111w mod 001 r/m
+                // Part of Group 2 instructions
 
-            // 01001 reg
+                Debug.Assert(self.insExtOpcode == 0b001);
+            }
+            else
+            {
+                Debug.Assert(0b01001_000 == (insByte & 0b11111_000));
+                // 01001 reg
+            }
 
             throw new NotImplementedException();
         }
@@ -351,8 +391,12 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXX1* (*C is 0 if destination=0)
             
+            Debug.Assert(0b1111_011_0 == (insByte & 0b1111111_0));
+
             // 1111011w mod 011 r/m
             // Part of Group 1 instructions
+
+            Debug.Assert(self.insExtOpcode == 0b011);
 
             throw new NotImplementedException();
         }
@@ -370,15 +414,26 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
 
-            // Register/memory and register
-            // 001110dw mod reg r/m
+            if (0b0011_10_00 == (insByte & 0b111111_00))
+            {
+                // Register/memory and register
+                // 001110dw mod reg r/m
+            }
+            else if (0b1000_00_00 == (insByte & 0b111111_00))
+            {
+                // Immediate with register/memory
+                // 100000sw mod 111 r/m data, data if s:w =01
+                // Part of Immediate group
 
-            // Immediate with register/memory
-            // 100000sw mod 111 r/m data, data if s:w =01
-            // Part of Immediate group
+                Debug.Assert(self.insExtOpcode == 0b111);
+            }
+            else
+            {
+                Debug.Assert(0b0011_110_0 == (insByte & 0b1111111_0));
 
-            // Immediate with accumulator
-            // 0011110w data, data if w=1
+                // Immediate with accumulator
+                // 0011110w data, data if w=1
+            }
 
             throw new NotImplementedException();
         }
@@ -395,6 +450,9 @@ namespace Emulate8086.Processor
  
             // ODITSZAPC
             // U   UUXUX
+
+            Debug.Assert(insByte == 0b0011_1111);
+
             // 00111111 -- ASCII adjust for subtract
             // 4 clocks
             throw new NotImplementedException();
@@ -411,7 +469,9 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-24
 
             // ODITSZAPC
-            // U   XXXXX
+            // U   XXXX
+
+            Debug.Assert(insByte == 0b0010_1111);
 
             // Decimal adjust for subtract
             // 00101111
@@ -433,9 +493,14 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   UUUUX
             
+            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+
             // Multiply unsigned
             // 1111011w mod 100 r/m
             // Part of Group 1 instructions
+
+            Debug.Assert(self.insExtOpcode == 0b100);
+
             throw new NotImplementedException();
         }
 
@@ -452,9 +517,14 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   UUUUX
             
+            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+
             // Integer multiply (signed)
             // 1111011w mod 101 r/m
             // Part of Group 1 instructions
+
+            Debug.Assert(self.insExtOpcode == 0b101);
+
             throw new NotImplementedException();
         }
 
@@ -470,9 +540,14 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // U   XXUXU
+
+            Debug.Assert(0b1101_0100 == insByte &&
+                         0b0000_1010 == self.memory[csip++]);
+            
             // ASCII adjust for multiply
             // 11010100 00001010
             // Second byte is always the same and is just "there"
+            // (It equals 10 in decimal)
             // 83 clocks
             // Description: Intel 8086 Family User's Manual October 1979, p. 2-36
             throw new NotImplementedException();
@@ -493,9 +568,12 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // U   UUUUU
 
+            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
             // Divide (unsigned)
             // 1111011w mod 110 r/m
             // Part of Group 1 instructions
+            Debug.Assert(self.insExtOpcode == 0b110);
+
             throw new NotImplementedException();
         }
 
@@ -512,9 +590,12 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // U   UUUUU
             
+            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
             // Integer divide (signed)
             // 1111011w mod 111 r/m
             // Part of Group 1 instructions
+            Debug.Assert(self.insExtOpcode == 0b111);
+
             throw new NotImplementedException();
         }
 
@@ -530,11 +611,16 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // U   XXUXU
-            // ASCII adjust for divide
-            // 11010101 00001010
             // Second byte is always the same and is just "there"
+            // (It equals 10 in decimal)
             // 60 clocks
             // Description: Intel 8086 Family User's Manual October 1979, p. 2-36
+
+            Debug.Assert(0b1101_0101 == insByte &&
+                         0b0000_1010 == self.memory[csip++]);
+
+            // ASCII adjust for divide
+            // 11010101 00001010
             throw new NotImplementedException();
         }
 
@@ -548,6 +634,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-52
             // - Table 4-12. 8086 Instruction Encoding, p. 4-24
 
+            Debug.Assert(insByte == 0b1001_1000);
+        
             // Convert byte to word
             // 10011000
             throw new NotImplementedException();
@@ -562,6 +650,8 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-38
             // - Table 2-21. Instruction Set Reference Data, p. 2-54
             // - Table 4-12. 8086 Instruction Encoding, p. 4-24
+
+            Debug.Assert(insByte == 0b1001_1001);
 
             // Convert word to double word
             // 10011001
