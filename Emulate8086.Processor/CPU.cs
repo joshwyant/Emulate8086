@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace Emulate8086.Processor
 {
@@ -15,6 +16,15 @@ namespace Emulate8086.Processor
         byte insByte;
         int csip_start;
         Instruction ins;
+        Dictionary<int, IDevice> devices = {};
+
+        public void AddDevice(IDevice device, params int[] ports)
+        {
+            foreach (var port in ports)
+            {
+                devices[port] = device;
+            }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ushort seg_prefix_or_default(Register def = Register.DS)

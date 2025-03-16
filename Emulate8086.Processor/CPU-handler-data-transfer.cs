@@ -8,6 +8,19 @@ namespace Emulate8086.Processor
 {
     public partial class CPU
     {
+        private void push(short data)
+        {
+            memory[--sssp] = (byte)((data >> 8) & 0xFF);
+            memory[--sssp] = (byte)(data & 0xFF)
+        }
+
+        private short pop()
+        {
+            var lo = memory[sssp++];
+            var hi = memory[sssp++];
+            return (hi << 8) | lo;
+        }
+
         #region General Purpose Data Transfers
         private static void HandlePUSH(CPU self)
         {
@@ -22,6 +35,7 @@ namespace Emulate8086.Processor
 
             if (insByte == 0xFF)
             {
+                // Decode
                 self.DecodeInstruction(
                     InstructionDecoderFlags.ModRM |
                     InstructionDecoderFlags.ModRMOpcode
@@ -32,15 +46,22 @@ namespace Emulate8086.Processor
                 // Part of Group 2 instructions
 
                 Debug.Assert(self.insExtOpcode == 0b110);
+
+                // Execute
+                self.push(self.GetModRMData())
             }
             else if (insByte >> 3 == 0b01010)
             {
+                // Decode
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
                 );
 
                 // 01010 reg
                 // Register
+
+                // Execute
+                self.push(self.GetReg16(self.insReg));
             }
             else
             {
@@ -51,9 +72,8 @@ namespace Emulate8086.Processor
 
                 // 000 seg 110
                 // Segment register
+                self.push(self.GetSeg16(self.insReg));
             }
-
-            throw new NotImplementedException();
         }
 
         private static void HandlePOP(CPU self)
@@ -77,6 +97,8 @@ namespace Emulate8086.Processor
                 // Register/memory
 
                 Debug.Assert(self.insExtOpcode == 0b000);
+
+                self.SetModRMData(self.pop());
             }
             else if (insByte >> 3 == 0b01011)
             {
@@ -86,6 +108,8 @@ namespace Emulate8086.Processor
 
                 // 01011 reg
                 // Register
+
+                self.SetReg(self.insReg, self.pop());
             }
             else
             {
@@ -95,9 +119,8 @@ namespace Emulate8086.Processor
                 );
                 // 000 seg 111
                 // Segment register
+                self.SetSeg(self.insSeg, self.pop());
             }
-
-            throw new NotImplementedException();
         }
 
         private static void HandleXCHG(CPU self)
@@ -120,6 +143,10 @@ namespace Emulate8086.Processor
 
                 // 1000011w mod reg rm
                 // Register/memory with register
+                var reg = self.GetReg(self.insReg, self.insW);
+                var src = self.GetModRMData();
+                self.SetReg(src, insW);
+                self.SetModRMData(reg);
             }
             else
             {
@@ -129,9 +156,11 @@ namespace Emulate8086.Processor
                 );
                 // 10010 reg 
                 // Register with accumulator
+                var accum = self.ax;
+                var reg = self.GetReg16(self.insW);
+                self.ax = reg;
+                self.SetReg16(self.insW, accum);
             }
-
-            throw new NotImplementedException();
         }
 
         private static void HandleXLAT(CPU self)
@@ -148,7 +177,9 @@ namespace Emulate8086.Processor
 
             // translate byte to al
             // 11010111
-            throw new NotImplementedException();
+            // Replace AL with byte from 256-byte table pointed to by bx.
+            // TODO: Take segment prefix into account?
+            self.al = self.memory[self.bx + self.al];
         }
 
         private static void HandleIN(CPU self)
@@ -163,15 +194,17 @@ namespace Emulate8086.Processor
 
             // Input to AL/AX from...
 
+            var port = 0;
             if ((insByte & 0b1111_111_0) == 0b1110_010_0)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
-                    InstructionDecoderFlags.Word // TODO: Make sure this works
+                    InstructionDecoderFlags.Byte
                 );
 
                 // 1110 010w | port
-                // Fixed port
+                // Fixed port (0-255)
+                port = self.ins_data;
             }
             else
             {
@@ -181,9 +214,18 @@ namespace Emulate8086.Processor
                 );
                 // 1110 110w
                 // Variable port (DX)
+                port = self.dx;
             }
 
-            throw new NotImplementedException();
+            if (!self.devices.ContainsKey(port))
+            {
+                self.SetReg(Register.AX, 0, insW);
+            }
+            else
+            {
+                var device = self.devices[port];
+                device.In(port, self.GetReg(Register.AX, insW));
+            }
         }
 
         private static void HandleOUT(CPU self)
@@ -198,14 +240,16 @@ namespace Emulate8086.Processor
 
             // Output from AL/AX to...
 
+            var port = 0;
             if ((insByte & 0b1111_111_0) == 0b1110_011_0)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
-                    InstructionDecoderFlags.Word // TODO: Make sure this works
+                    InstructionDecoderFlags.Byte // TODO: Make sure this works
                 );
                 // 1110011w port
-                // Fixed port
+                // Fixed port (0-255)
+                port = self.ins_data;
             }
             else
             {
@@ -215,8 +259,16 @@ namespace Emulate8086.Processor
                 );
                 // 1110110w
                 // Variable port (DX)
+                port = self.dx;
             }
-            throw new NotImplementedException();
+
+            var output = 0;
+            if (self.devices.ContainsKey(port))
+            {
+                var device = self.devices[port];
+                device.Out(port, ref output);
+            }
+            self.GetReg(Register.AX, output, insW);
         }
         #endregion
 
@@ -240,7 +292,7 @@ namespace Emulate8086.Processor
 
             // Load effective address to register
             // 10001101 mod reg r/m
-            throw new NotImplementedException();
+            self.SetReg16(self.modrm_addr); // or eff_addr?
         }
 
         private static void HandleLDS(CPU self)
