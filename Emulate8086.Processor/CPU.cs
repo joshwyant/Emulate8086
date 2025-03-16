@@ -35,11 +35,11 @@ namespace Emulate8086.Processor
         {
             if (modrm_is_reg)
             {
-                SetReg(modrm_register, data, is_word);
+                SetReg(modrm_register, data, insW);
             }
             else
             {
-                memory.setDataAt(modrm_addr, data, is_word);
+                memory.setDataAt(modrm_addr, data, insW);
             }
         }
 
@@ -69,11 +69,15 @@ namespace Emulate8086.Processor
             // Middle byte could be an extended opcode, or another register.
             if ((instructionFlags & InstructionDecoderFlags.ModRMOpcode) != 0)
             {
-                insReg = (Register)middle;
+                insExtOpcode = middle;
             }
             else if ((instructionFlags & InstructionDecoderFlags.ModRMReg) != 0)
             {
-                insExtOpcode = middle;
+                insReg = (Register)middle;
+            }
+            else if ((instructionFlags & InstructionDecoderFlags.ModRMSeg) != 0)
+            {
+                insReg = (Register)(middle & 0b011);
             }
 
             if (mod == Register.DispReg)
@@ -145,7 +149,7 @@ namespace Emulate8086.Processor
             modrm_eff_addr = (ushort)(addr + disp);
         }
 
-        int modrm_addr => modrm_seg_addr * 16 + modrm_addr;
+        int modrm_addr => modrm_seg_addr * 16 + modrm_eff_addr;
 
         InstructionDecoderFlags instructionFlags;
         PrefixFlags prefix;
@@ -294,7 +298,14 @@ namespace Emulate8086.Processor
                 // Sometimes, the W flag refers to a different operation, not the data byte; so don't use that.
                 if (insW)
                 {
-                    ins_data |= (ushort)(memory[csip++] << 8);
+                    if (insS && (ins_data & 0b10000000 != 0))
+                    {
+                        ins_data |= 0xFF00;  // Sign-extend
+                    }
+                    else if (!insS) // No sign extend, read full word
+                    {
+                        ins_data |= (ushort)(memory[csip++] << 8);
+                    }
                 }
             }
 
@@ -317,6 +328,7 @@ namespace Emulate8086.Processor
             }
             if ((instructionFlags & InstructionDecoderFlags.DispW) != 0)
             {
+                disp &= 0xFF;
                 disp |= (short)(ushort)(memory[csip++] << 8);
             }
 
@@ -324,6 +336,11 @@ namespace Emulate8086.Processor
             var b_accepted_flag = (instructionFlags & InstructionDecoderFlags.Byte) != 0;
             var w_accepted_flag = (instructionFlags & InstructionDecoderFlags.Word) != 0;
             is_immediate_word = w_accepted_flag ? wflag_enabled ? insW : true : false;
+
+            if ((flags & InstructionDecoderFlags.ModRM) != 0)
+            {
+                switch ()
+            }
         }
 
         public void Clock()
@@ -344,6 +361,8 @@ namespace Emulate8086.Processor
             if (!is_prefix)
             {
                 // Done with any prefix.
+                // Only clear prefixes after non-prefix
+                // instruction executes.
                 prefix = PrefixFlags.None;
             }
         }

@@ -15,7 +15,7 @@ namespace Emulate8086.Processor
     {
         // 16x16 matrix 0h-Fh x 0h-Fh
         // References 8088 Instruction Set Matrix, p. B-16
-        // 8088 Instruction Reference, Technical Reference,
+        // 8088 Instruction Reference, Technical Reference;
         // IBM Personal Computer XT Hardware Refernce Library, 1983
         private static readonly Instruction[,] instructionMatrix =
         {
@@ -81,6 +81,7 @@ namespace Emulate8086.Processor
                 { JAE, HandleJAE },
                 { JB, HandleJB },
                 { JBE, HandleJBE },
+                { JC, HandleJC },
                 { JCXZ, HandleJCXZ },
                 { JE, HandleJE },
                 { JG, HandleJG },
@@ -91,6 +92,7 @@ namespace Emulate8086.Processor
                 { JNA, HandleJNA },
                 { JNAE, HandleJNAE },
                 { JNB, HandleJNB },
+                { JNC, HandleJNC },
                 { JNBE, HandleJNBE },
                 { JNE, HandleJNE },
                 { JNG, HandleJNG },
@@ -119,6 +121,8 @@ namespace Emulate8086.Processor
                 { LOOPNZ, HandleLOOPNZ },
                 { LOOPZ, HandleLOOPZ },
                 { MOV, HandleMOV },
+                { MOVSB, HandleMOVSB },
+                { MOVSW, HandleMOVSW },
                 { MOVS, HandleMOVS },
                 { MUL, HandleMUL },
                 { NEG, HandleNEG },
@@ -133,6 +137,10 @@ namespace Emulate8086.Processor
                 { RCL, HandleRCL },
                 { RCR, HandleRCR },
                 { REP, HandleREP },
+                { REPE, HandleREPE },
+                { REPZ, HandleREPZ },
+                { REPNE, HandleREPNE },
+                { REPNZ, HandleREPNZ },
                 { RET, HandleRET },
                 { ROL, HandleROL },
                 { ROR, HandleROR },

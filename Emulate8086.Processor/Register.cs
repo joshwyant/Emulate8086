@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// IBM PC Technical Reference
+// Appendix B: 8088 Assembly Instruction Reference
+// p. B-3 
 namespace Emulate8086.Processor
 {
     public enum Register : int
@@ -40,7 +43,7 @@ namespace Emulate8086.Processor
         MemBPDI,
         MemSI,
         MemDI,
-        MemBP,
+        MemBP, // except if mod = 00 and r/m = 110 then EA = disp-high: disp-low
         MemBX,
         MemDirect = 0b110
     }

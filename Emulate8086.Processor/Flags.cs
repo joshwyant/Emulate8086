@@ -1,4 +1,7 @@
-﻿namespace Emulate8086
+﻿// IBM PC Technical Reference
+// Appendix B: 8088 Assembly Instruction Reference
+// p. B-3 
+namespace Emulate8086
 {
     [Flags]
     public enum Flags : ushort

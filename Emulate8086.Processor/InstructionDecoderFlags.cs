@@ -10,7 +10,7 @@ namespace Emulate8086.Processor
     internal enum InstructionDecoderFlags
     {
         None = 0,
-        Byte = 1, // Immediate data can be 1 byte
+        Byte = 1, // Immediate data can be at least 1 byte
         Word = 1 << 1, // Immediate data can be 2 bytes
         W = 1 << 2, // Has word size flag
         D  = 1 << 3, // Has direction flag
@@ -25,8 +25,9 @@ namespace Emulate8086.Processor
         ModRM = 1 << 12, // ModRM byte
         ModRMOpcode = 1 << 13, // ModRM byte can have extended opcode
         ModRMReg = 1 << 14, // ModRM byte can have register
-        DispB = 1 << 15,
-        DispW = 1 << 16,
+        ModRMSeg = 1 << 15, // ModRM byte can have segment register
+        DispB = 1 << 16,
+        DispW = 1 << 17,
 
     }
 }
