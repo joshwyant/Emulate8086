@@ -57,7 +57,14 @@ namespace Emulate8086.Processor
             );
             // Repeat
             // 1111001z
-            throw new NotImplementedException();
+            
+            // Store the repeat prefix state
+            self.repActive = true;
+            self.repZ = self.insZ;
+            
+            // Note: The next instruction will be executed in the context of this prefix
+            // The actual repeat loop is handled by the CPU execution loop
+            // This is only storing the prefix state for the next string instruction
         }
 
         private static void HandleMOVSW(CPU self)
@@ -94,7 +101,70 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.W
             );
             // 1010010w
-            throw new NotImplementedException();
+            
+            // Check if we're in a REP loop
+            if (self.repActive)
+            {
+                // If CX is zero, exit
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                    return;
+                }
+            }
+            
+            // Execute MOVS
+            if (self.insW)
+            {
+                // Word operation
+                ushort value = self.mem.ReadWord(self.ds, self.si);
+                self.mem.WriteWord(self.es, self.di, value);
+                
+                // Update SI and DI based on DF flag
+                if (self.DF)
+                {
+                    self.si -= 2;
+                    self.di -= 2;
+                }
+                else
+                {
+                    self.si += 2;
+                    self.di += 2;
+                }
+            }
+            else
+            {
+                // Byte operation
+                byte value = self.mem.ReadByte(self.ds, self.si);
+                self.mem.WriteByte(self.es, self.di, value);
+                
+                // Update SI and DI based on DF flag
+                if (self.DF)
+                {
+                    self.si -= 1;
+                    self.di -= 1;
+                }
+                else
+                {
+                    self.si += 1;
+                    self.di += 1;
+                }
+            }
+            
+            // If REP prefix active, decrement CX and check
+            if (self.repActive)
+            {
+                self.cx--;
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                }
+                else
+                {
+                    // Repeat the instruction by adjusting IP
+                    self.ip = self.ipStart;
+                }
+            }
         }
 
         private static void HandleCMPS(CPU self)
@@ -118,7 +188,90 @@ namespace Emulate8086.Processor
             // Compare string
             // 1010011w
             
-            throw new NotImplementedException();
+            // Check if we're in a REP loop
+            if (self.repActive)
+            {
+                // If CX is zero, exit
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                    return;
+                }
+            }
+            
+            // Execute CMPS
+            if (self.insW)
+            {
+                // Word operation
+                ushort value1 = self.mem.ReadWord(self.ds, self.si);
+                ushort value2 = self.mem.ReadWord(self.es, self.di);
+                ushort result = (ushort)(value1 - value2);
+                
+                // Set flags as with CMP instruction
+                self.SetSubtractionFlags(value1, value2, result);
+                
+                // Update SI and DI based on DF flag
+                if (self.DF)
+                {
+                    self.si -= 2;
+                    self.di -= 2;
+                }
+                else
+                {
+                    self.si += 2;
+                    self.di += 2;
+                }
+            }
+            else
+            {
+                // Byte operation
+                byte value1 = self.mem.ReadByte(self.ds, self.si);
+                byte value2 = self.mem.ReadByte(self.es, self.di);
+                byte result = (byte)(value1 - value2);
+                
+                // Set flags as with CMP instruction
+                self.SetSubtractionFlags(value1, value2, result);
+                
+                // Update SI and DI based on DF flag
+                if (self.DF)
+                {
+                    self.si -= 1;
+                    self.di -= 1;
+                }
+                else
+                {
+                    self.si += 1;
+                    self.di += 1;
+                }
+            }
+            
+            // If REP prefix active, handle the repeat
+            if (self.repActive)
+            {
+                self.cx--;
+                
+                bool shouldRepeat = false;
+                if (self.repZ)
+                {
+                    // REPE/REPZ: Repeat while equal (ZF=1)
+                    shouldRepeat = self.ZF && (self.cx != 0);
+                }
+                else
+                {
+                    // REPNE/REPNZ: Repeat while not equal (ZF=0)
+                    shouldRepeat = !self.ZF && (self.cx != 0);
+                }
+                
+                if (!shouldRepeat)
+                {
+                    self.repActive = false;
+                }
+                else
+                {
+                    // Repeat the instruction by adjusting IP
+                    self.ip = self.ipStart;
+                }
+            }
         }
 
         private static void HandleSCAS(CPU self)
@@ -141,7 +294,87 @@ namespace Emulate8086.Processor
             );
             // Scan string
             // 1010111w
-            throw new NotImplementedException();
+            
+            // Check if we're in a REP loop
+            if (self.repActive)
+            {
+                // If CX is zero, exit
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                    return;
+                }
+            }
+            
+            // Execute SCAS
+            if (self.insW)
+            {
+                // Word operation
+                ushort value1 = self.ax;
+                ushort value2 = self.mem.ReadWord(self.es, self.di);
+                ushort result = (ushort)(value1 - value2);
+                
+                // Set flags as with CMP instruction
+                self.SetSubtractionFlags(value1, value2, result);
+                
+                // Update DI based on DF flag
+                if (self.DF)
+                {
+                    self.di -= 2;
+                }
+                else
+                {
+                    self.di += 2;
+                }
+            }
+            else
+            {
+                // Byte operation
+                byte value1 = (byte)self.ax;
+                byte value2 = self.mem.ReadByte(self.es, self.di);
+                byte result = (byte)(value1 - value2);
+                
+                // Set flags as with CMP instruction
+                self.SetSubtractionFlags(value1, value2, result);
+                
+                // Update DI based on DF flag
+                if (self.DF)
+                {
+                    self.di -= 1;
+                }
+                else
+                {
+                    self.di += 1;
+                }
+            }
+            
+            // If REP prefix active, handle the repeat
+            if (self.repActive)
+            {
+                self.cx--;
+                
+                bool shouldRepeat = false;
+                if (self.repZ)
+                {
+                    // REPE/REPZ: Repeat while equal (ZF=1)
+                    shouldRepeat = self.ZF && (self.cx != 0);
+                }
+                else
+                {
+                    // REPNE/REPNZ: Repeat while not equal (ZF=0)
+                    shouldRepeat = !self.ZF && (self.cx != 0);
+                }
+                
+                if (!shouldRepeat)
+                {
+                    self.repActive = false;
+                }
+                else
+                {
+                    // Repeat the instruction by adjusting IP
+                    self.ip = self.ipStart;
+                }
+            }
         }
 
         private static void HandleLODS(CPU self)
@@ -161,7 +394,64 @@ namespace Emulate8086.Processor
             );
             // Load string
             // 1010110w
-            throw new NotImplementedException();
+            
+            // Check if we're in a REP loop
+            if (self.repActive)
+            {
+                // If CX is zero, exit
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                    return;
+                }
+            }
+            
+            // Execute LODS
+            if (self.insW)
+            {
+                // Word operation
+                self.ax = self.mem.ReadWord(self.ds, self.si);
+                
+                // Update SI based on DF flag
+                if (self.DF)
+                {
+                    self.si -= 2;
+                }
+                else
+                {
+                    self.si += 2;
+                }
+            }
+            else
+            {
+                // Byte operation
+                self.ax = (ushort)((self.ax & 0xFF00) | self.mem.ReadByte(self.ds, self.si));
+                
+                // Update SI based on DF flag
+                if (self.DF)
+                {
+                    self.si -= 1;
+                }
+                else
+                {
+                    self.si += 1;
+                }
+            }
+            
+            // If REP prefix active, decrement CX and check
+            if (self.repActive)
+            {
+                self.cx--;
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                }
+                else
+                {
+                    // Repeat the instruction by adjusting IP
+                    self.ip = self.ipStart;
+                }
+            }
         }
 
         private static void HandleSTOS(CPU self)
@@ -181,7 +471,64 @@ namespace Emulate8086.Processor
             );
             // Store string
             // 1010101w
-            throw new NotImplementedException();
+            
+            // Check if we're in a REP loop
+            if (self.repActive)
+            {
+                // If CX is zero, exit
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                    return;
+                }
+            }
+            
+            // Execute STOS
+            if (self.insW)
+            {
+                // Word operation
+                self.mem.WriteWord(self.es, self.di, self.ax);
+                
+                // Update DI based on DF flag
+                if (self.DF)
+                {
+                    self.di -= 2;
+                }
+                else
+                {
+                    self.di += 2;
+                }
+            }
+            else
+            {
+                // Byte operation
+                self.mem.WriteByte(self.es, self.di, (byte)self.ax);
+                
+                // Update DI based on DF flag
+                if (self.DF)
+                {
+                    self.di -= 1;
+                }
+                else
+                {
+                    self.di += 1;
+                }
+            }
+            
+            // If REP prefix active, decrement CX and check
+            if (self.repActive)
+            {
+                self.cx--;
+                if (self.cx == 0)
+                {
+                    self.repActive = false;
+                }
+                else
+                {
+                    // Repeat the instruction by adjusting IP
+                    self.ip = self.ipStart;
+                }
+            }
         }
     }
 }

@@ -19,6 +19,11 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-52
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            ushort returnOffset = (ushort)(self.ip);
+            ushort newOffset = 0;
+            ushort newSegment = 0;
+            bool intersegment = false;
+
             switch (insByte)
             {
                 case 0b1110_1000:
@@ -28,6 +33,7 @@ namespace Emulate8086.Processor
                     );
                     // Direct within segment
                     // 11101000 disp-low disp-high
+                    newOffset = (ushort)(self.ip + self.disp);
                     break;
                 case 0b1111_1111:
                     if (self.insExtOpcode == 0b010)
@@ -36,10 +42,13 @@ namespace Emulate8086.Processor
                             InstructionDecoderFlags.ModRM |
                             InstructionDecoderFlags.ModRMOpcode
                         );
-                        // Inderect within segment
+                        // Indirect within segment
                         // 11111111 mod 010 r/m
                         // Part of Group 2 instructions
                         Debug.Assert(self.insExtOpcode == 0b010)
+                        
+                        // Get address from r/m
+                        newOffset = self.GetModRMData();
                     }
                     else
                     {
@@ -47,10 +56,16 @@ namespace Emulate8086.Processor
                             InstructionDecoderFlags.ModRM |
                             InstructionDecoderFlags.ModRMOpcode
                         );
-                        // Inderect intersegment
+                        // Indirect intersegment
                         // 11111111 mod 011 r/m
                         // Part of Group 2 instructions
                         Debug.Assert(self.insExtOpcode == 0b011);
+                        
+                        // Get far pointer from memory
+                        ushort ea = self.CalcEA();
+                        newOffset = self.mem.ReadWord(self.ds, ea);
+                        newSegment = self.mem.ReadWord(self.ds, (ushort)(ea + 2));
+                        intersegment = true;
                     }
                     break;
                 case 0b1001_1010:
@@ -59,13 +74,34 @@ namespace Emulate8086.Processor
                     );
                     // Direct intersegment
                     // 10011010 offs-low offs-hi seg-lo seg-hi
+                    newOffset = (ushort)self.ins_offsetL;
+                    newSegment = (ushort)self.ins_segL;
+                    intersegment = true;
                     break;
                 default:
                     Debug.Assert(false);
                     break;
             }
 
-            throw new NotImplementedException();
+            // Push return address onto stack
+            self.sp -= 2;
+            self.mem.WriteWord(self.ss, self.sp, returnOffset);
+            
+            if (intersegment)
+            {
+                // For intersegment, also push CS
+                self.sp -= 2;
+                self.mem.WriteWord(self.ss, self.sp, self.cs);
+                
+                // Update CS:IP
+                self.cs = newSegment;
+                self.ip = newOffset;
+            }
+            else
+            {
+                // Update IP only
+                self.ip = newOffset;
+            }
         }
 
         private static void HandleRET(CPU self)
@@ -78,6 +114,9 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-64
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
+
+            bool intersegment = false;
+            ushort imm = 0;
 
             switch (insByte)
             {
@@ -92,24 +131,52 @@ namespace Emulate8086.Processor
                     );
                     // Within segment adding immediate to SP
                     // 11000010 data-lo data-hi
+                    imm = (ushort)self.ins_data;
                     break;
                 case 0b1100_1001:
                     // Intersegment
                     // 11001011
+                    intersegment = true;
                     break;
-                case 0b1100_0010:
+                case 0b1100_1010:
                     // Intersegment, adding immediate to SP
-                    // 11000010 data-lo data-hi
+                    // 11001010 data-lo data-hi
                     self.DecodeInstruction(
                         InstructionDecoderFlags.Word
                     );
+                    imm = (ushort)self.ins_data;
+                    intersegment = true;
                     break;
                 default:
                     Debug.Assert(false);
                     break;
             }
 
-            throw new NotImplementedException();
+            // Pop return address from stack
+            ushort returnIP = self.mem.ReadWord(self.ss, self.sp);
+            self.sp += 2;
+            
+            if (intersegment)
+            {
+                // For intersegment, also pop CS
+                ushort returnCS = self.mem.ReadWord(self.ss, self.sp);
+                self.sp += 2;
+                
+                // Update CS:IP
+                self.cs = returnCS;
+                self.ip = returnIP;
+            }
+            else
+            {
+                // Update IP only
+                self.ip = returnIP;
+            }
+            
+            // Add immediate to SP if specified
+            if (imm > 0)
+            {
+                self.sp += imm;
+            }
         }
 
         private static void HandleJMP(CPU self)
@@ -122,39 +189,84 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-58
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            ushort newOffset = 0;
+            ushort newSegment = 0;
+            bool intersegment = false;
+
             switch (insByte)
             {
                 case 0b1110_1001:
                     // Direct within segment
                     // 11101001 disp-low disp-high
+                    self.DecodeInstruction(
+                        InstructionDecoderFlags.DispW
+                    );
+                    newOffset = (ushort)(self.ip + self.disp);
                     break;
                 case 0b1110_1011:
                     // Direct within segment short
                     // 11101011 disp
+                    self.DecodeInstruction(
+                        InstructionDecoderFlags.Byte
+                    );
+                    // Need to sign-extend the byte displacement to a short
+                    newOffset = (ushort)(self.ip + (sbyte)self.ins_data);
                     break;
                 case 0b1111_1111:
+                    self.DecodeInstruction(
+                        InstructionDecoderFlags.ModRM |
+                        InstructionDecoderFlags.ModRMOpcode
+                    );
+                    
                     if (self.insExtOpcode == 0b100)
                     {
                         // Indirect within segment
                         // 11111111 mod 100 r/m
                         // Part of Group 2 instructions
+                        Debug.Assert(self.insExtOpcode == 0b100);
+                        
+                        // Get address from r/m
+                        newOffset = self.GetModRMData();
                     }
                     else
                     {
-                        // Inderect intersegment
+                        // Indirect intersegment
                         // 11111111 mod 101 r/m
                         // Part of Group 2 instructions
+                        Debug.Assert(self.insExtOpcode == 0b101);
+                        
+                        // Get far pointer from memory
+                        ushort ea = self.CalcEA();
+                        newOffset = self.mem.ReadWord(self.ds, ea);
+                        newSegment = self.mem.ReadWord(self.ds, (ushort)(ea + 2));
+                        intersegment = true;
                     }
                     break;
                 case 0b1110_1010:
                     // Direct intersegment
                     // 11101010 off-lo off-hi seg-lo seg-hi
+                    self.DecodeInstruction(
+                        InstructionDecoderFlags.AddrL
+                    );
+                    newOffset = (ushort)self.ins_offsetL;
+                    newSegment = (ushort)self.ins_segL;
+                    intersegment = true;
                     break;
                 default:
                     Debug.Assert(false);
                     break;
             }
-            throw new NotImplementedException();
+            
+            // Update registers
+            if (intersegment)
+            {
+                self.cs = newSegment;
+                self.ip = newOffset;
+            }
+            else
+            {
+                self.ip = newOffset;
+            }
         }
         #endregion
 
@@ -614,7 +726,17 @@ namespace Emulate8086.Processor
 
             // loop cx times
             // 11100010 disp
-            throw new NotImplementedException();
+            
+            // Decrement CX
+            self.cx--;
+            
+            // Jump if CX != 0
+            if (self.cx != 0)
+            {
+                // Sign-extend byte displacement to a short
+                short disp = (sbyte)self.ins_data;
+                self.jmp(disp);
+            }
         }
 
         private static void HandleLOOPE(CPU self)
@@ -635,7 +757,17 @@ namespace Emulate8086.Processor
 
             // loopz/loope loop while zero/equal
             // 11100001 disp
-            throw new NotImplementedException();
+            
+            // Decrement CX
+            self.cx--;
+            
+            // Jump if CX != 0 and ZF = 1
+            if (self.cx != 0 && self.ZF)
+            {
+                // Sign-extend byte displacement to a short
+                short disp = (sbyte)self.ins_data;
+                self.jmp(disp);
+            }
         }
 
         private static void HandleLOOPNE(CPU self)
@@ -661,7 +793,17 @@ namespace Emulate8086.Processor
 
             // loopnz/loopne loop while not zero/not equal
             // 11100000 disp
-            throw new NotImplementedException();
+            
+            // Decrement CX
+            self.cx--;
+            
+            // Jump if CX != 0 and ZF = 0
+            if (self.cx != 0 && !self.ZF)
+            {
+                // Sign-extend byte displacement to a short
+                short disp = (sbyte)self.ins_data;
+                self.jmp(disp);
+            }
         }
 
         private static void HandleLOOPZ(CPU self)
@@ -707,6 +849,8 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             //   00     
 
+            byte intType = 0;
+
             switch (insByte)
             {
                 case 0b1100_1101:
@@ -716,17 +860,36 @@ namespace Emulate8086.Processor
                     // interrupt
                     // type specified
                     // 11001101 type
+                    intType = (byte)self.ins_data;
                     break;
                 case 0b1100_1100:
                     // type 3
                     // 11001100
+                    intType = 3;
                     break;
                 default:
                     Debug.Assert(false);
                     break;
             }
 
-            throw new NotImplementedException();
+            // Save flags on stack
+            self.sp -= 2;
+            self.mem.WriteWord(self.ss, self.sp, self.GetFlags());
+            
+            // Clear IF and TF flags
+            self.IF = false;
+            self.TF = false;
+            
+            // Save CS:IP on stack
+            self.sp -= 2;
+            self.mem.WriteWord(self.ss, self.sp, self.cs);
+            self.sp -= 2;
+            self.mem.WriteWord(self.ss, self.sp, self.ip);
+            
+            // Load new CS:IP from interrupt vector table
+            uint intVectorAddr = (uint)intType * 4;
+            self.ip = self.mem.ReadWord(0, (ushort)intVectorAddr);
+            self.cs = self.mem.ReadWord(0, (ushort)(intVectorAddr + 2));
         }
 
         private static void HandleINTO(CPU self)
@@ -745,7 +908,29 @@ namespace Emulate8086.Processor
             
             // interrupt on overflow
             // 11001110
-            throw new NotImplementedException();
+            
+            // If overflow flag is set, execute INT 4
+            if (self.OF)
+            {
+                // Save flags on stack
+                self.sp -= 2;
+                self.mem.WriteWord(self.ss, self.sp, self.GetFlags());
+                
+                // Clear IF and TF flags
+                self.IF = false;
+                self.TF = false;
+                
+                // Save CS:IP on stack
+                self.sp -= 2;
+                self.mem.WriteWord(self.ss, self.sp, self.cs);
+                self.sp -= 2;
+                self.mem.WriteWord(self.ss, self.sp, self.ip);
+                
+                // Load new CS:IP from interrupt vector 4
+                uint intVectorAddr = 4 * 4;
+                self.ip = self.mem.ReadWord(0, (ushort)intVectorAddr);
+                self.cs = self.mem.ReadWord(0, (ushort)(intVectorAddr + 2));
+            }
         }
 
         private static void HandleIRET(CPU self)
@@ -764,7 +949,19 @@ namespace Emulate8086.Processor
             
             // interrupt return
             // 11001111
-            throw new NotImplementedException();
+            
+            // Pop IP, CS, and FLAGS from stack
+            self.ip = self.mem.ReadWord(self.ss, self.sp);
+            self.sp += 2;
+            
+            self.cs = self.mem.ReadWord(self.ss, self.sp);
+            self.sp += 2;
+            
+            ushort flags = self.mem.ReadWord(self.ss, self.sp);
+            self.sp += 2;
+            
+            // Restore flags
+            self.SetFlags(flags);
         }
         #endregion
 

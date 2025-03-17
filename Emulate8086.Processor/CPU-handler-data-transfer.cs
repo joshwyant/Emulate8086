@@ -145,7 +145,7 @@ namespace Emulate8086.Processor
                 // Register/memory with register
                 var reg = self.GetReg(self.insReg, self.insW);
                 var src = self.GetModRMData();
-                self.SetReg(src, insW);
+                self.SetReg(self.insReg, src, insW);
                 self.SetModRMData(reg);
             }
             else
@@ -157,7 +157,7 @@ namespace Emulate8086.Processor
                 // 10010 reg 
                 // Register with accumulator
                 var accum = self.ax;
-                var reg = self.GetReg16(self.insW);
+                var reg = self.GetReg16(self.insReg);
                 self.ax = reg;
                 self.SetReg16(self.insW, accum);
             }
@@ -313,7 +313,16 @@ namespace Emulate8086.Processor
 
             // Load pointer to DS
             // 11000101 mod reg r/m
-            throw new NotImplementedException();
+            
+            // Read offset (first word) and segment (second word)
+            var offset = self.memory.wordAt(self.modrm_addr);
+            var segment = self.memory.wordAt(self.modrm_addr + 2);
+            
+            // Set register to offset
+            self.SetReg16(self.insReg, offset);
+            
+            // Set DS segment register to segment value
+            self.SetSeg(Register.DS, segment);
         }
 
         private static void HandleLES(CPU self)
@@ -335,7 +344,16 @@ namespace Emulate8086.Processor
 
             // Load pointer to ES
             // 11000100 mod reg r/m
-            throw new NotImplementedException();
+            
+            // Read offset (first word) and segment (second word)
+            var offset = self.memory.wordAt(self.modrm_addr);
+            var segment = self.memory.wordAt(self.modrm_addr + 2);
+            
+            // Set register to offset
+            self.SetReg16(self.insReg, offset);
+            
+            // Set ES segment register to segment value
+            self.SetSeg(Register.ES, segment);
         }
         #endregion
 
@@ -354,7 +372,9 @@ namespace Emulate8086.Processor
 
             // Load AH with flags
             // 10011111
-            throw new NotImplementedException();
+            
+            // Get lower byte of flags register and store in AH
+            self.SetReg8(Register.AH, (byte)self.flags);
         }
 
         private static void HandleSAHF(CPU self)
@@ -374,7 +394,10 @@ namespace Emulate8086.Processor
             
             // Store AH into flags
             // 10011110
-            throw new NotImplementedException();
+            
+            // Get value from AH and place in lower byte of flags
+            byte ah = self.GetReg8(Register.AH);
+            self.flags = (self.flags & 0xFF00) | ah;
         }
 
         private static void HandlePUSHF(CPU self)
@@ -391,7 +414,9 @@ namespace Emulate8086.Processor
 
             // 1001 1100
             // Push flags
-            throw new NotImplementedException();
+            
+            // Push flags register onto stack
+            self.push((short)self.flags);
         }
 
         private static void HandlePOPF(CPU self)
@@ -411,7 +436,9 @@ namespace Emulate8086.Processor
             
             // 1001 1101
             // Pop flags
-            throw new NotImplementedException();
+            
+            // Pop value from stack and set as flags register
+            self.flags = self.pop();
         }
         #endregion
     }
