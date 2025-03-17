@@ -208,7 +208,7 @@ namespace Emulate8086.Processor
 
             // Clear carry
             // 11111000
-            throw new NotImplementedException();
+            self.CF = false;
         }
 
         private static void HandleCMC(CPU self)
@@ -228,7 +228,7 @@ namespace Emulate8086.Processor
 
             // Complement carry
             // 11110101
-            throw new NotImplementedException();
+            self.CF = !self.CF;
         }
 
         private static void HandleSTC(CPU self)
@@ -248,7 +248,7 @@ namespace Emulate8086.Processor
             
             // Set carry
             // 11111001
-            throw new NotImplementedException();
+            self.CF = true;
         }
 
         private static void HandleCLD(CPU self)
@@ -268,7 +268,7 @@ namespace Emulate8086.Processor
 
             // Clear direction
             // 11111100
-            throw new NotImplementedException();
+            self.DF = false;
         }
 
         private static void HandleSTD(CPU self)
@@ -288,7 +288,7 @@ namespace Emulate8086.Processor
             
             // Set direction
             // 11111101
-            throw new NotImplementedException();
+            self.DF = true;
         }
 
         private static void HandleCLI(CPU self)
@@ -308,7 +308,7 @@ namespace Emulate8086.Processor
 
             // Clear interrupt
             // 11111010
-            throw new NotImplementedException();
+            self.IF = false;
         }
 
         private static void HandleSTI(CPU self)
@@ -328,7 +328,7 @@ namespace Emulate8086.Processor
             
             // Set interrupt
             // 11111011
-            throw new NotImplementedException();
+            self.IF = true;
         }
         #endregion
 
@@ -347,7 +347,7 @@ namespace Emulate8086.Processor
             
             // halt
             // 11110100
-            throw new NotImplementedException();
+            self.halted = true;
         }
 
         private static void HandleWAIT(CPU self)
@@ -363,7 +363,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b10011011 == insByte);
             
             // 10011011
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         private static void HandleESC(CPU self)
@@ -384,7 +384,7 @@ namespace Emulate8086.Processor
 
             // Escape (to external device)
             // 11011xxx mod xxx r/m
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         private static void HandleLOCK(CPU self)
@@ -401,7 +401,7 @@ namespace Emulate8086.Processor
 
             // Bus lock prefix
             // 11110000
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
         #endregion
 
@@ -417,7 +417,7 @@ namespace Emulate8086.Processor
             
             // No operation (xchg eax,eax)
             // 10010000
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
         #endregion
     }
