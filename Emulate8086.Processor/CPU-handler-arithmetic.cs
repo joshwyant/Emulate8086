@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Diagnostics;
 namespace Emulate8086.Processor
 {
     public partial class CPU
@@ -79,7 +79,7 @@ namespace Emulate8086.Processor
 
                 // Add immediate to accumulator
                 a = self.ax;
-                b = self.data(ref csip, w);
+                b = self.ins_data;
                 result = a + b;
                 self.ax = (ushort)result;
             }
@@ -99,7 +99,7 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
 
-            int result = self.CF ? 1 : 0;
+            int a, b, result = self.CF ? 1 : 0;
             if ((self.insByte & 0b1111_1100) == 0b0001_0000)
             {
                 // 0001 00dw | mod reg r/m
@@ -111,7 +111,9 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.D);
 
                 // Add modrm/reg depending on direction
-                result += self.GetModRMData() + self.GetReg(self.insReg, self.insW);
+                a = self.GetModRMData();
+                b = self.GetReg(self.insReg, self.insW);
+                result += a + b;
                 if (self.insD)
                 {
                     self.SetModRMData((ushort)result);
@@ -137,7 +139,9 @@ namespace Emulate8086.Processor
                 // Add immediate to r/m
                 // Extended opcode is 010
                 Debug.Assert(self.insExtOpcode == 0b010);
-                result += self.GetModRMData() + self.ins_data;
+                a = self.GetModRMData();
+                b = self.ins_data;
+                result += a + b;
                 self.SetModRMData((ushort)result);
             }
             else
@@ -152,7 +156,9 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Word);
 
                 // Add immediate to accumulator
-                result += self.ax + self.data(ref csip, w);
+                a = self.ax;
+                b = self.ins_data;
+                result += a + b;
                 self.ax = (ushort)result;
             }
             self.SetAdditionFlags(a, b, self.CF ? 1 : 0, result);
@@ -170,13 +176,13 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X   XXXX 
-            
+
             int result = 0;
 
             // 1111111w mod 000 rm
             // Register/memory
             // Part of Group 2 instructions
-            if ((insByte & 0b1111_1110) == 0x1111_1110)
+            if ((self.insByte & 0b1111_1110) == 0x1111_1110)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -185,7 +191,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Byte |
                     InstructionDecoderFlags.Word
                 );
-                Debug.Assert(insExtOpcode == 0b000);
+                Debug.Assert(self.insExtOpcode == 0b000);
                 result = self.GetModRMData() + 1;
                 self.SetModRMData((ushort)result);
             }
@@ -193,18 +199,18 @@ namespace Emulate8086.Processor
             // Reg
             else
             {
-                Debug.Assert((insByte & 0b1111_1000) == 0b0100_0000);
+                Debug.Assert((self.insByte & 0b1111_1000) == 0b0100_0000);
 
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
                 );
                 self.insW = true; // Yes or no?? Needed for addition flags
-                result = self.GetReg(insReg, self.insW) + 1;
-                self.SetReg(insReg, (ushort)result, self.insW)
+                result = self.GetReg(self.insReg, self.insW) + 1;
+                self.SetReg(self.insReg, (ushort)result, self.insW);
             }
 
             var prevCarry = self.CF;
-            self.SetAdditionFlags(result);
+            self.SetAdditionFlags(result, 0, 0, result);
             self.CF = prevCarry;
         }
 
@@ -221,7 +227,7 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // U   UUXUX
 
-            Debug.Assert(0b0011_0111 == insByte);
+            Debug.Assert(0b0011_0111 == self.insByte);
 
             // ASCII adjust for add
             // 00110111
@@ -230,15 +236,15 @@ namespace Emulate8086.Processor
             // Logic: https://en.wikipedia.org/wiki/Intel_BCD_opcode
             //        https://web.archive.org/web/20190203181246/http://www.jaist.ac.jp/iscenter-new/mpc/altix/altixdata/opt/intel/vtune/doc/users_guide/mergedProjects/analyzer_ec/mergedProjects/reference_olh/mergedProjects/instructions/instruct32_hh/vc2a.htm
             //        https://web.archive.org/web/20081102170717/http://webster.cs.ucr.edu/AoA/Windows/HTML/AdvancedArithmetica6.html#1000255
-            if ((al & 0x0F) >= 10)
+            if ((self.al & 0x0F) >= 10)
             {
-                al = (byte)((al + 6) & 0xF);
-                ah += 1;
-                flags |= Flags.CF | Flags.AF;
+                self.al = (byte)((self.al + 6) & 0xF);
+                self.ah += 1;
+                self.flags |= Flags.CF | Flags.AF;
             }
             else
             {
-                flags &= ~(Flags.CF | Flags.AF);
+                self.flags &= ~(Flags.CF | Flags.AF);
             }
         }
 
@@ -255,7 +261,7 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
 
-            Debug.Assert(0b0010_0111 == insByte);
+            Debug.Assert(0b0010_0111 == self.insByte);
 
             // Decimal adjust for add
             // 00100111
@@ -287,10 +293,10 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X   XXXXX
-            
+
             int a = 0, b = 0, result = 0;
-            
-            if ((insByte & 0b11111100) == 0b00101000)
+
+            if ((self.insByte & 0b11111100) == 0b00101000)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.D |
@@ -300,7 +306,7 @@ namespace Emulate8086.Processor
                 );
                 // r/m and r to either
                 // 001010dw mod reg r/m
-                
+
                 if (self.insD)
                 {
                     // reg = reg - r/m
@@ -318,7 +324,7 @@ namespace Emulate8086.Processor
                     self.SetModRMData((ushort)result);
                 }
             }
-            else if ((insByte & 0b11111100) == 0b10000000)
+            else if ((self.insByte & 0b11111100) == 0b10000000)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.S |
@@ -333,7 +339,7 @@ namespace Emulate8086.Processor
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b101);
-                
+
                 a = self.GetModRMData();
                 b = self.ins_data;
                 result = a - b;
@@ -341,7 +347,7 @@ namespace Emulate8086.Processor
             }
             else
             {
-                Debug.Assert((insByte & 0b11111110) == 0b00101100);
+                Debug.Assert((self.insByte & 0b11111110) == 0b00101100);
 
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -351,13 +357,13 @@ namespace Emulate8086.Processor
 
                 // imm from accum
                 // 0010110w data, data if w=1
-                
+
                 a = self.ax;
                 b = self.ins_data;
                 result = a - b;
                 self.ax = (ushort)result;
             }
-            
+
             // Set flags for subtraction
             self.SetSubtractionFlags(a, b, 0, result);
         }
@@ -374,12 +380,12 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X   XXXXX
-            
+
             int a = 0, b = 0, result = 0;
             int borrow = self.CF ? 1 : 0;
-            
+
             // Subtract with borrow
-            if ((insByte & 0b111111_00) == 0b000110_00)
+            if ((self.insByte & 0b111111_00) == 0b000110_00)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.D |
@@ -390,7 +396,7 @@ namespace Emulate8086.Processor
 
                 // r/m and r to either
                 // 000110dw mod reg r/m
-                
+
                 if (self.insD)
                 {
                     // reg = reg - r/m - CF
@@ -408,7 +414,7 @@ namespace Emulate8086.Processor
                     self.SetModRMData((ushort)result);
                 }
             }
-            else if (0b100000_00 == (insByte & 0b111111_00))
+            else if (0b100000_00 == (self.insByte & 0b111111_00))
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.S |
@@ -424,7 +430,7 @@ namespace Emulate8086.Processor
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b011);
-                
+
                 a = self.GetModRMData();
                 b = self.ins_data;
                 result = a - b - borrow;
@@ -432,7 +438,7 @@ namespace Emulate8086.Processor
             }
             else
             {
-                Debug.Assert(0b0001110_0 == (insByte & 0b1111111_0));
+                Debug.Assert(0b0001110_0 == (self.insByte & 0b1111111_0));
 
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -442,13 +448,13 @@ namespace Emulate8086.Processor
 
                 // imm from accum
                 // 0001110w data, data if w=1
-                
+
                 a = self.ax;
                 b = self.ins_data;
                 result = a - b - borrow;
                 self.ax = (ushort)result;
             }
-            
+
             // Set flags for subtraction
             self.SetSubtractionFlags(a, b, borrow, result);
         }
@@ -468,8 +474,8 @@ namespace Emulate8086.Processor
 
             int a = 0, result = 0;
             var prevCarry = self.CF;
-            
-            if (0b1111111_0 == (insByte & 0b1111111_0))
+
+            if (0b1111111_0 == (self.insByte & 0b1111111_0))
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -481,26 +487,26 @@ namespace Emulate8086.Processor
                 // Part of Group 2 instructions
 
                 Debug.Assert(self.insExtOpcode == 0b001);
-                
+
                 a = self.GetModRMData();
                 result = a - 1;
                 self.SetModRMData((ushort)result);
             }
             else
             {
-                Debug.Assert(0b01001_000 == (insByte & 0b11111_000));
+                Debug.Assert(0b01001_000 == (self.insByte & 0b11111_000));
 
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
                 );
                 // 01001 reg
-                
+
                 self.insW = true; // Set for 16-bit register
                 a = self.GetReg16(self.insReg);
                 result = a - 1;
                 self.SetReg16(self.insReg, (ushort)result);
             }
-            
+
             // Set flags but preserve the carry flag
             self.SetSubtractionFlags(a, 1, 0, result);
             self.CF = prevCarry;
@@ -518,8 +524,8 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X   XXXX1* (*C is 0 if destination=0)
-            
-            Debug.Assert(0b1111_011_0 == (insByte & 0b1111111_0));
+
+            Debug.Assert(0b1111_011_0 == (self.insByte & 0b1111111_0));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W |
@@ -531,14 +537,14 @@ namespace Emulate8086.Processor
             // Part of Group 1 instructions
 
             Debug.Assert(self.insExtOpcode == 0b011);
-            
+
             var value = self.GetModRMData();
             var result = (ushort)(-value);
             self.SetModRMData(result);
-            
+
             // Set flags - NEG is basically a SUB of the value from 0
             self.SetSubtractionFlags(0, value, 0, result);
-            
+
             // CF is 0 only if source operand is 0
             self.CF = value != 0;
         }
@@ -557,8 +563,8 @@ namespace Emulate8086.Processor
             // X   XXXXX
 
             int a = 0, b = 0, result = 0;
-            
-            if (0b0011_10_00 == (insByte & 0b111111_00))
+
+            if (0b0011_10_00 == (self.insByte & 0b111111_00))
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.D |
@@ -569,7 +575,7 @@ namespace Emulate8086.Processor
 
                 // Register/memory and register
                 // 001110dw mod reg r/m
-                
+
                 if (self.insD)
                 {
                     // Compare reg - r/m
@@ -584,7 +590,7 @@ namespace Emulate8086.Processor
                 }
                 result = a - b;
             }
-            else if (0b1000_00_00 == (insByte & 0b111111_00))
+            else if (0b1000_00_00 == (self.insByte & 0b111111_00))
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.S |
@@ -600,14 +606,14 @@ namespace Emulate8086.Processor
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b111);
-                
+
                 a = self.GetModRMData();
                 b = self.ins_data;
                 result = a - b;
             }
             else
             {
-                Debug.Assert(0b0011_110_0 == (insByte & 0b1111111_0));
+                Debug.Assert(0b0011_110_0 == (self.insByte & 0b1111111_0));
 
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -617,18 +623,18 @@ namespace Emulate8086.Processor
 
                 // Immediate with accumulator
                 // 0011110w data, data if w=1
-                
+
                 a = self.ax;
                 b = self.ins_data;
                 result = a - b;
             }
-            
+
             // CMP only sets flags, doesn't store result
             self.SetSubtractionFlags(a, b, 0, result);
         }
 
         private static void HandleAAS(CPU self)
-        {           
+        {
             // IBM Personal Computer Hardware Reference Library - Technical
             // Reference, 8088 Instruction Reference, p. B-8
 
@@ -636,15 +642,15 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-36
             // - Table 2-21. Instruction Set Reference Data, p. 2-51
             // - Table 4-12. 8086 Instruction Encoding, p. 4-24
- 
+
             // ODITSZAPC
             // U   UUXUX
 
-            Debug.Assert(insByte == 0b0011_1111);
+            Debug.Assert(self.insByte == 0b0011_1111);
 
             // 00111111 -- ASCII adjust for subtract
             // 4 clocks
-            
+
             // If lower nibble is > 9 or AF is set
             if ((self.al & 0xF) > 9 || self.AF)
             {
@@ -656,7 +662,7 @@ namespace Emulate8086.Processor
             {
                 self.flags &= ~(Flags.AF | Flags.CF);
             }
-            
+
             // Zero the upper nibble of AL
             self.al &= 0x0F;
         }
@@ -674,14 +680,14 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // U   XXXX
 
-            Debug.Assert(insByte == 0b0010_1111);
+            Debug.Assert(self.insByte == 0b0010_1111);
 
             // Decimal adjust for subtract
             // 00101111
-            
+
             var oldAL = self.al;
             var oldCF = self.CF;
-            
+
             // If lower nibble > 9 or AF is set
             if ((self.al & 0xF) > 9 || self.AF)
             {
@@ -692,7 +698,7 @@ namespace Emulate8086.Processor
             {
                 self.AF = false;
             }
-            
+
             // If upper nibble > 9 or CF is set
             if ((oldAL > 0x99) || oldCF)
             {
@@ -719,8 +725,8 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X   UUUUX
-            
-            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+
+            Debug.Assert(0b1111_011_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W |
@@ -733,14 +739,14 @@ namespace Emulate8086.Processor
             // Part of Group 1 instructions
 
             Debug.Assert(self.insExtOpcode == 0b100);
-            
+
             if (self.insW)
             {
                 // Word multiplication (AX * r/m16 = DX:AX)
                 uint result = (uint)self.ax * (uint)self.GetModRMData();
                 self.ax = (ushort)(result & 0xFFFF);         // Lower word
                 self.dx = (ushort)((result >> 16) & 0xFFFF); // Upper word
-                
+
                 // Set CF/OF if upper word (DX) is non-zero
                 self.CF = self.OF = (self.dx != 0);
             }
@@ -749,7 +755,7 @@ namespace Emulate8086.Processor
                 // Byte multiplication (AL * r/m8 = AX)
                 ushort result = (ushort)(self.al * self.GetModRMData());
                 self.ax = result;
-                
+
                 // Set CF/OF if upper byte (AH) is non-zero
                 self.CF = self.OF = ((result & 0xFF00) != 0);
             }
@@ -767,9 +773,9 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X   UUUUX
-            
-            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
-        
+
+            Debug.Assert(0b1111_011_0 == (self.insByte & 0b11111110));
+
             self.DecodeInstruction(
                 InstructionDecoderFlags.W |
                 InstructionDecoderFlags.ModRM |
@@ -781,20 +787,20 @@ namespace Emulate8086.Processor
             // Part of Group 1 instructions
 
             Debug.Assert(self.insExtOpcode == 0b101);
-            
+
             if (self.insW)
             {
                 // Word multiplication (AX * r/m16 = DX:AX)
                 int a = (short)self.ax;
                 int b = (short)self.GetModRMData();
                 int result = a * b;
-                
+
                 self.ax = (ushort)(result & 0xFFFF);         // Lower word
                 self.dx = (ushort)((result >> 16) & 0xFFFF); // Upper word
-                
+
                 // Set CF/OF if sign extension of AX != DX
                 short signExtendedLow = (short)self.ax;
-                self.CF = self.OF = (((signExtendedLow < 0) && (self.dx != 0xFFFF)) || 
+                self.CF = self.OF = (((signExtendedLow < 0) && (self.dx != 0xFFFF)) ||
                                       ((signExtendedLow >= 0) && (self.dx != 0)));
             }
             else
@@ -803,9 +809,9 @@ namespace Emulate8086.Processor
                 sbyte a = (sbyte)self.al;
                 sbyte b = (sbyte)(byte)self.GetModRMData();
                 short result = (short)(a * b);
-                
+
                 self.ax = (ushort)result;
-                
+
                 // Set CF/OF if sign extension of AL != AH
                 byte signExtendedAL = (byte)((self.al & 0x80) != 0 ? 0xFF : 0);
                 self.CF = self.OF = (self.ah != signExtendedAL);
@@ -825,21 +831,21 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // U   XXUXU
 
-            Debug.Assert(0b1101_0100 == insByte &&
-                         0b0000_1010 == self.memory[csip++]);
-            
+            Debug.Assert(0b1101_0100 == self.insByte &&
+                         0b0000_1010 == self.memory[self.csip++]);
+
             // ASCII adjust for multiply
             // 11010100 00001010
             // Second byte is always the same and is just "there"
             // (It equals 10 in decimal)
             // 83 clocks
             // Description: Intel 8086 Family User's Manual October 1979, p. 2-36
-            
+
             byte base10 = 10; // This is usually the second byte of the instruction
-            
+
             self.ah = (byte)(self.al / base10);
             self.al = (byte)(self.al % base10);
-            
+
             // Update flags
             self.SF = ((self.ah & 0x80) != 0);
             self.ZF = (self.ax == 0);
@@ -861,7 +867,7 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // U   UUUUU
 
-            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+            Debug.Assert(0b1111_011_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W |
@@ -873,9 +879,9 @@ namespace Emulate8086.Processor
             // 1111011w mod 110 r/m
             // Part of Group 1 instructions
             Debug.Assert(self.insExtOpcode == 0b110);
-            
+
             ushort divisor = self.GetModRMData();
-            
+
             // Division by zero should cause an interrupt (not handled here)
             if (divisor == 0)
             {
@@ -883,14 +889,14 @@ namespace Emulate8086.Processor
                 // TODO
                 throw new DivideByZeroException("DIV instruction with zero divisor");
             }
-            
+
             if (self.insW)
             {
                 // Word division (DX:AX / r/m16 = AX quotient, DX remainder)
                 uint dividend = ((uint)self.dx << 16) | self.ax;
                 uint quotient = dividend / divisor;
                 uint remainder = dividend % divisor;
-                
+
                 // Check for division overflow (quotient > 0xFFFF)
                 if (quotient > 0xFFFF)
                 {
@@ -898,7 +904,7 @@ namespace Emulate8086.Processor
                     throw new OverflowException("DIV instruction quotient overflow");
                     // TODO
                 }
-                
+
                 self.ax = (ushort)quotient;
                 self.dx = (ushort)remainder;
             }
@@ -907,10 +913,10 @@ namespace Emulate8086.Processor
                 // Byte division (AX / r/m8 = AL quotient, AH remainder)
                 ushort dividend = self.ax;
                 byte byteDiv = (byte)divisor;
-                
+
                 byte quotient = (byte)(dividend / byteDiv);
                 byte remainder = (byte)(dividend % byteDiv);
-                
+
                 // Check for division overflow (quotient > 0xFF)
                 if ((dividend / byteDiv) > 0xFF)
                 {
@@ -918,11 +924,11 @@ namespace Emulate8086.Processor
                     throw new OverflowException("DIV instruction quotient overflow");
                     // TODO
                 }
-                
+
                 self.al = quotient;
                 self.ah = remainder;
             }
-            
+
             // DIV doesn't affect flags
         }
 
@@ -938,22 +944,22 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // U   UUUUU
-            
-            Debug.Assert(0b1111_011_0 == (insByte & 0b11111110));
+
+            Debug.Assert(0b1111_011_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W |
                 InstructionDecoderFlags.ModRM |
                 InstructionDecoderFlags.ModRMOpcode
             );
-            
+
             // Integer divide (signed)
             // 1111011w mod 111 r/m
             // Part of Group 1 instructions
             Debug.Assert(self.insExtOpcode == 0b111);
-            
+
             short divisor = (short)self.GetModRMData();
-            
+
             // Division by zero should cause an interrupt (not handled here)
             if (divisor == 0)
             {
@@ -961,14 +967,14 @@ namespace Emulate8086.Processor
                 throw new DivideByZeroException("IDIV instruction with zero divisor");
                 // TODO
             }
-            
+
             if (self.insW)
             {
                 // Word division (DX:AX / r/m16 = AX quotient, DX remainder)
                 int dividend = ((int)self.dx << 16) | self.ax;
                 int quotient = dividend / divisor;
                 int remainder = dividend % divisor;
-                
+
                 // Check for division overflow
                 if (quotient < -32768 || quotient > 32767)
                 {
@@ -976,7 +982,7 @@ namespace Emulate8086.Processor
                     throw new OverflowException("IDIV instruction quotient overflow");
                     // TODO
                 }
-                
+
                 self.ax = (ushort)quotient;
                 self.dx = (ushort)remainder;
             }
@@ -985,10 +991,10 @@ namespace Emulate8086.Processor
                 // Byte division (AX / r/m8 = AL quotient, AH remainder)
                 short dividend = (short)self.ax;
                 sbyte byteDiv = (sbyte)(byte)divisor;
-                
+
                 sbyte quotient = (sbyte)(dividend / byteDiv);
                 sbyte remainder = (sbyte)(dividend % byteDiv);
-                
+
                 // Check for division overflow
                 if (quotient < -128 || quotient > 127)
                 {
@@ -996,11 +1002,11 @@ namespace Emulate8086.Processor
                     throw new OverflowException("IDIV instruction quotient overflow");
                     // TODO
                 }
-                
+
                 self.al = (byte)quotient;
                 self.ah = (byte)remainder;
             }
-            
+
             // IDIV doesn't affect flags
         }
 
@@ -1021,18 +1027,18 @@ namespace Emulate8086.Processor
             // 60 clocks
             // Description: Intel 8086 Family User's Manual October 1979, p. 2-36
 
-            Debug.Assert(0b1101_0101 == insByte &&
-                         0b0000_1010 == self.memory[csip++]);
+            Debug.Assert(0b1101_0101 == self.insByte &&
+                         0b0000_1010 == self.memory[self.csip++]);
 
             // ASCII adjust for divide
             // 11010101 00001010
-            
+
             byte base10 = 10; // This is usually the second byte of the instruction
-            
+
             // Convert AX from BCD to binary
             self.al = (byte)((self.ah * base10) + self.al);
             self.ah = 0;
-            
+
             // Update flags
             self.SF = ((self.al & 0x80) != 0);
             self.ZF = (self.ax == 0);
@@ -1049,11 +1055,11 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-52
             // - Table 4-12. 8086 Instruction Encoding, p. 4-24
 
-            Debug.Assert(insByte == 0b1001_1000);
-        
+            Debug.Assert(self.insByte == 0b1001_1000);
+
             // Convert byte to word
             // 10011000
-            
+
             // Sign-extend AL into AH (AL to AX)
             self.ah = (self.al & 0x80) != 0 ? (byte)0xFF : (byte)0;
         }
@@ -1068,11 +1074,11 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-54
             // - Table 4-12. 8086 Instruction Encoding, p. 4-24
 
-            Debug.Assert(insByte == 0b1001_1001);
+            Debug.Assert(self.insByte == 0b1001_1001);
 
             // Convert word to double word
             // 10011001
-            
+
             // Sign-extend AX into DX (AX to DX:AX)
             self.dx = (self.ax & 0x8000) != 0 ? (ushort)0xFFFF : (ushort)0;
         }
@@ -1083,9 +1089,9 @@ namespace Emulate8086.Processor
         {
             // Count bits set to 1 and return true if even, false if odd.
             // (according to chatgpt)
-            data ^= data >> 4;
-            data ^= data >> 2;
-            data ^= data >> 1;
+            data ^= (byte)(data >> 4);
+            data ^= (byte)(data >> 2);
+            data ^= (byte)(data >> 1);
             return (data & 1) == 0;
         }
 
@@ -1096,7 +1102,7 @@ namespace Emulate8086.Processor
             CF = (result & (insW ? 0x10000 : 0x100)) != 0;
             AF = ((a & 0xF) + (b & 0xF) + c) >= 0x10; // Addition resulting in a carry outside the lower nibble
             SF = (result & (insW ? 0x8000 : 0x80)) != 0;
-            PF = parity_byte(result & 0xFF);
+            PF = parity_byte((byte)(result & 0xFF));
             OF = ((a ^ result) & (b ^ result) & (insW ? 0x8000 : 0x80)) != 0; // signed overflow
         }
 
@@ -1107,7 +1113,7 @@ namespace Emulate8086.Processor
             CF = (result & (insW ? 0x10000 : 0x100)) != 0;
             AF = ((a & 0xF) - (b & 0xF) - borrow) < 0; // Borrow from the higher nibble
             SF = (result & (insW ? 0x8000 : 0x80)) != 0;
-            PF = parity_byte(result & 0xFF);
+            PF = parity_byte((byte)(result & 0xFF));
             OF = ((a ^ b) & (a ^ result) & (insW ? 0x8000 : 0x80)) != 0; // signed overflow
         }
         #endregion

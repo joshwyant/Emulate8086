@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Diagnostics;
 namespace Emulate8086.Processor
 {
     public partial class CPU
@@ -29,7 +29,7 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-31
             // - Table 2-21. Instruction Set Reference Data, p. 2-61
             // - Table 4-12. 8086 Instruction Encoding, p. 4-22
-            
+
             var csip = self.csip;
 
             if ((self.insByte & 0b11111100) == 0b10001000)
@@ -68,8 +68,8 @@ namespace Emulate8086.Processor
             }
             else
             {
-                Debug.Assert(0b == insByte);
-                
+                Debug.Assert(0b10001100 == self.insByte);
+
                 // 10001100 (8C)
                 self.MovSegrToRM(ref csip);
             }
@@ -88,7 +88,7 @@ namespace Emulate8086.Processor
 
             // Execute
             insW = true; // So 2 bytes of data are written to register/memory
-            SetModRMData(GetSeg(segreg));
+            SetModRMData(GetSeg(insReg));
         }
 
         private void MovRMToSegr(ref int csip)
@@ -111,10 +111,10 @@ namespace Emulate8086.Processor
             // 1010001w | addr low | addr high
             // Accumulator to memory
             DecodeInstruction(
-                InstructionDecoderFlags.W,
+                InstructionDecoderFlags.W |
                 InstructionDecoderFlags.Addr
             );
-            memory.setDataAt(ins_addr, ax, w);
+            memory.setDataAt(ins_addr, ax, insW);
         }
 
         private void MovMemToAccum(ref int csip)
@@ -125,10 +125,10 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.W |
                 InstructionDecoderFlags.Addr
             );
-            
+
             // Execute
             // AX and AL
-            SetReg(Register.AX, ins_addr, w);
+            SetReg(Register.AX, ins_addr, insW);
         }
 
         private void MovImmToR(ref int csip)
@@ -136,9 +136,9 @@ namespace Emulate8086.Processor
             // 1011 w reg | data | data if w=1
             // Immediate to register
             DecodeInstruction(
-                InstructionDecoderFlags.Reg | 
-                InstructionDecoderFlags.W | 
-                InstructionDecoderFlags.Byte | 
+                InstructionDecoderFlags.Reg |
+                InstructionDecoderFlags.W |
+                InstructionDecoderFlags.Byte |
                 InstructionDecoderFlags.Word);
 
             // Execute
@@ -150,10 +150,10 @@ namespace Emulate8086.Processor
             // 1100011 w | mod 000 rm | data | data if w=1
             // Immediate to register/memory
             DecodeInstruction(
-                InstructionDecoderFlags.W | 
-                InstructionDecoderFlags.ModRM | 
+                InstructionDecoderFlags.W |
+                InstructionDecoderFlags.ModRM |
                 InstructionDecoderFlags.ModRMOpcode |
-                InstructionDecoderFlags.Byte | 
+                InstructionDecoderFlags.Byte |
                 InstructionDecoderFlags.Word);
 
             // Execute

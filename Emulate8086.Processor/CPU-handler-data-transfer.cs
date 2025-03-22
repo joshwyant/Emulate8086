@@ -3,22 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Diagnostics;
 namespace Emulate8086.Processor
 {
     public partial class CPU
     {
         private void push(short data)
         {
-            memory[--sssp] = (byte)((data >> 8) & 0xFF);
-            memory[--sssp] = (byte)(data & 0xFF)
+            memory[ss, --sp] = (byte)((data >> 8) & 0xFF);
+            memory[ss, --sp] = (byte)(data & 0xFF);
         }
 
         private short pop()
         {
-            var lo = memory[sssp++];
-            var hi = memory[sssp++];
-            return (hi << 8) | lo;
+            var lo = memory[ss, sp++];
+            var hi = memory[ss, sp++];
+            return (short)((hi << 8) | lo);
         }
 
         #region General Purpose Data Transfers
@@ -33,7 +33,7 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-22
             // - Table 4-13. Machine Instruction Decoding Guide, p. 4-27
 
-            if (insByte == 0xFF)
+            if (self.insByte == 0xFF)
             {
                 // Decode
                 self.DecodeInstruction(
@@ -48,9 +48,9 @@ namespace Emulate8086.Processor
                 Debug.Assert(self.insExtOpcode == 0b110);
 
                 // Execute
-                self.push(self.GetModRMData())
+                self.push((short)self.GetModRMData());
             }
-            else if (insByte >> 3 == 0b01010)
+            else if (self.insByte >> 3 == 0b01010)
             {
                 // Decode
                 self.DecodeInstruction(
@@ -61,18 +61,18 @@ namespace Emulate8086.Processor
                 // Register
 
                 // Execute
-                self.push(self.GetReg16(self.insReg));
+                self.push((short)self.GetReg16(self.insReg));
             }
             else
             {
-                Debug.Assert(insByte >> 5 == 0b000);
+                Debug.Assert(self.insByte >> 5 == 0b000);
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Seg
                 );
 
                 // 000 seg 110
                 // Segment register
-                self.push(self.GetSeg16(self.insReg));
+                self.push((short)self.insReg);
             }
         }
 
@@ -86,7 +86,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-62            
             // - Table 4-12. 8086 Instruction Encoding, p. 4-22
 
-            if (insByte == 0b10001111)
+            if (self.insByte == 0b10001111)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.ModRM |
@@ -98,9 +98,9 @@ namespace Emulate8086.Processor
 
                 Debug.Assert(self.insExtOpcode == 0b000);
 
-                self.SetModRMData(self.pop());
+                self.SetModRMData((ushort)self.pop());
             }
-            else if (insByte >> 3 == 0b01011)
+            else if (self.insByte >> 3 == 0b01011)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
@@ -109,17 +109,17 @@ namespace Emulate8086.Processor
                 // 01011 reg
                 // Register
 
-                self.SetReg(self.insReg, self.pop());
+                self.SetReg(self.insReg, (ushort)self.pop());
             }
             else
             {
-                Debug.Assert((insByte & 0b111_00_111) == 0b000_00_111);
+                Debug.Assert((self.insByte & 0b111_00_111) == 0b000_00_111);
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Seg
                 );
                 // 000 seg 111
                 // Segment register
-                self.SetSeg(self.insSeg, self.pop());
+                self.SetSeg(self.insReg, (ushort)self.pop());
             }
         }
 
@@ -133,7 +133,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-67
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            if ((insByte & 0b1111111_0) == 0b1000011_0)
+            if ((self.insByte & 0b1111111_0) == 0b1000011_0)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -145,12 +145,12 @@ namespace Emulate8086.Processor
                 // Register/memory with register
                 var reg = self.GetReg(self.insReg, self.insW);
                 var src = self.GetModRMData();
-                self.SetReg(self.insReg, src, insW);
+                self.SetReg(self.insReg, src, self.insW);
                 self.SetModRMData(reg);
             }
             else
             {
-                Debug.Assert((insByte >> 3) == 0b10010);
+                Debug.Assert((self.insByte >> 3) == 0b10010);
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
                 );
@@ -159,7 +159,7 @@ namespace Emulate8086.Processor
                 var accum = self.ax;
                 var reg = self.GetReg16(self.insReg);
                 self.ax = reg;
-                self.SetReg16(self.insW, accum);
+                self.SetReg16(self.insReg, accum);
             }
         }
 
@@ -173,7 +173,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-67
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            Debug.Assert(0b1101_0111 == insByte);
+            Debug.Assert(0b1101_0111 == self.insByte);
 
             // translate byte to al
             // 11010111
@@ -195,7 +195,7 @@ namespace Emulate8086.Processor
             // Input to AL/AX from...
 
             var port = 0;
-            if ((insByte & 0b1111_111_0) == 0b1110_010_0)
+            if ((self.insByte & 0b1111_111_0) == 0b1110_010_0)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -208,7 +208,7 @@ namespace Emulate8086.Processor
             }
             else
             {
-                Debug.Assert((insByte & 0b1111_111_0) == 0b1110_110_0);
+                Debug.Assert((self.insByte & 0b1111_111_0) == 0b1110_110_0);
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W
                 );
@@ -219,12 +219,12 @@ namespace Emulate8086.Processor
 
             if (!self.devices.ContainsKey(port))
             {
-                self.SetReg(Register.AX, 0, insW);
+                self.SetReg(Register.AX, 0, self.insW);
             }
             else
             {
                 var device = self.devices[port];
-                device.In(port, self.GetReg(Register.AX, insW));
+                device.In(port, self.GetReg(Register.AX, self.insW));
             }
         }
 
@@ -241,7 +241,7 @@ namespace Emulate8086.Processor
             // Output from AL/AX to...
 
             var port = 0;
-            if ((insByte & 0b1111_111_0) == 0b1110_011_0)
+            if ((self.insByte & 0b1111_111_0) == 0b1110_011_0)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -253,7 +253,7 @@ namespace Emulate8086.Processor
             }
             else
             {
-                Debug.Assert((insByte & 0b1111_111_0) == 0b1110_110_0);
+                Debug.Assert((self.insByte & 0b1111_111_0) == 0b1110_110_0);
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W
                 );
@@ -262,13 +262,12 @@ namespace Emulate8086.Processor
                 port = self.dx;
             }
 
-            var output = 0;
+            int output = self.GetReg(Register.AX, self.insW);
             if (self.devices.ContainsKey(port))
             {
                 var device = self.devices[port];
                 device.Out(port, ref output);
             }
-            self.GetReg(Register.AX, output, insW);
         }
         #endregion
 
@@ -283,7 +282,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            Debug.Assert(0b1000_1101 == insByte);
+            Debug.Assert(0b1000_1101 == self.insByte);
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.ModRM |
@@ -292,7 +291,7 @@ namespace Emulate8086.Processor
 
             // Load effective address to register
             // 10001101 mod reg r/m
-            self.SetReg16(self.modrm_addr); // or eff_addr?
+            self.SetReg(self.insReg, (ushort)self.modrm_addr); // or eff_addr?
         }
 
         private static void HandleLDS(CPU self)
@@ -304,7 +303,7 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-32
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
 
-            Debug.Assert(0b1100_0101 == insByte);
+            Debug.Assert(0b1100_0101 == self.insByte);
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.ModRM |
@@ -313,14 +312,14 @@ namespace Emulate8086.Processor
 
             // Load pointer to DS
             // 11000101 mod reg r/m
-            
+
             // Read offset (first word) and segment (second word)
             var offset = self.memory.wordAt(self.modrm_addr);
             var segment = self.memory.wordAt(self.modrm_addr + 2);
-            
+
             // Set register to offset
             self.SetReg16(self.insReg, offset);
-            
+
             // Set DS segment register to segment value
             self.SetSeg(Register.DS, segment);
         }
@@ -335,7 +334,7 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            Debug.Assert(0b1100_0100 == insByte);
+            Debug.Assert(0b1100_0100 == self.insByte);
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.ModRM |
@@ -344,14 +343,14 @@ namespace Emulate8086.Processor
 
             // Load pointer to ES
             // 11000100 mod reg r/m
-            
+
             // Read offset (first word) and segment (second word)
             var offset = self.memory.wordAt(self.modrm_addr);
             var segment = self.memory.wordAt(self.modrm_addr + 2);
-            
+
             // Set register to offset
             self.SetReg16(self.insReg, offset);
-            
+
             // Set ES segment register to segment value
             self.SetSeg(Register.ES, segment);
         }
@@ -368,11 +367,11 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-59
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            Debug.Assert(0b1001_1111 == insByte);
+            Debug.Assert(0b1001_1111 == self.insByte);
 
             // Load AH with flags
             // 10011111
-            
+
             // Get lower byte of flags register and store in AH
             self.SetReg8(Register.AH, (byte)self.flags);
         }
@@ -390,14 +389,14 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             //     RRRRR
 
-            Debug.Assert(0b1001_1110 == insByte);
-            
+            Debug.Assert(0b1001_1110 == self.insByte);
+
             // Store AH into flags
             // 10011110
-            
+
             // Get value from AH and place in lower byte of flags
             byte ah = self.GetReg8(Register.AH);
-            self.flags = (self.flags & 0xFF00) | ah;
+            self.flags = (Flags)((int)self.flags & 0xFF00) | (Flags)ah;
         }
 
         private static void HandlePUSHF(CPU self)
@@ -410,11 +409,11 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-63
             // - Table 4-12. 8086 Instruction Encoding, p. 4-23
 
-            Debug.Assert(0b1001_1100 == insByte);
+            Debug.Assert(0b1001_1100 == self.insByte);
 
             // 1001 1100
             // Push flags
-            
+
             // Push flags register onto stack
             self.push((short)self.flags);
         }
@@ -432,13 +431,13 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // RRRRRRRRR
 
-            Debug.Assert(0b1001_1101 == insByte);
-            
+            Debug.Assert(0b1001_1101 == self.insByte);
+
             // 1001 1101
             // Pop flags
-            
+
             // Pop value from stack and set as flags register
-            self.flags = self.pop();
+            self.flags = (Flags)self.pop();
         }
         #endregion
     }

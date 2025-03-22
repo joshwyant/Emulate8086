@@ -16,7 +16,7 @@ namespace Emulate8086.Processor
         byte insByte;
         int csip_start;
         Instruction ins;
-        Dictionary<int, IDevice> devices = {};
+        Dictionary<int, IDevice> devices = new();
 
         public void AddDevice(IDevice device, params int[] ports)
         {
@@ -308,7 +308,7 @@ namespace Emulate8086.Processor
                 // Sometimes, the W flag refers to a different operation, not the data byte; so don't use that.
                 if (insW)
                 {
-                    if (insS && (ins_data & 0b10000000 != 0))
+                    if (insS && ((ins_data & 0b10000000) != 0))
                     {
                         ins_data |= 0xFF00;  // Sign-extend
                     }
@@ -346,11 +346,6 @@ namespace Emulate8086.Processor
             var b_accepted_flag = (instructionFlags & InstructionDecoderFlags.Byte) != 0;
             var w_accepted_flag = (instructionFlags & InstructionDecoderFlags.Word) != 0;
             is_immediate_word = w_accepted_flag ? wflag_enabled ? insW : true : false;
-
-            if ((flags & InstructionDecoderFlags.ModRM) != 0)
-            {
-                switch ()
-            }
         }
 
         public void Clock()

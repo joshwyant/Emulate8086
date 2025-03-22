@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Diagnostics;
 namespace Emulate8086.Processor
 {
     public partial class CPU
@@ -50,18 +50,18 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-63
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
-            Debug.Assert(0b1111_001_0 == (insByte & 0b11111110));
+            Debug.Assert(0b1111_001_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.Z
             );
             // Repeat
             // 1111001z
-            
+
             // Store the repeat prefix state
             self.repActive = true;
             self.repZ = self.insZ;
-            
+
             // Note: The next instruction will be executed in the context of this prefix
             // The actual repeat loop is handled by the CPU execution loop
             // This is only storing the prefix state for the next string instruction
@@ -95,13 +95,13 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-61
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
-            Debug.Assert(0b1010_010_0 == (insByte & 0b11111110));
+            Debug.Assert(0b1010_010_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W
             );
             // 1010010w
-            
+
             // Check if we're in a REP loop
             if (self.repActive)
             {
@@ -112,14 +112,14 @@ namespace Emulate8086.Processor
                     return;
                 }
             }
-            
+
             // Execute MOVS
             if (self.insW)
             {
                 // Word operation
-                ushort value = self.mem.ReadWord(self.ds, self.si);
-                self.mem.WriteWord(self.es, self.di, value);
-                
+                ushort value = self.memory.wordAt(self.ds, self.si);
+                self.memory.setWordAt(self.es, self.di, value);
+
                 // Update SI and DI based on DF flag
                 if (self.DF)
                 {
@@ -135,9 +135,10 @@ namespace Emulate8086.Processor
             else
             {
                 // Byte operation
-                byte value = self.mem.ReadByte(self.ds, self.si);
-                self.mem.WriteByte(self.es, self.di, value);
-                
+                var dssi = self.ds * 16 + self.si;
+                var esdi = self.es * 16 + self.di;
+                self.memory[esdi] = self.memory[dssi];
+
                 // Update SI and DI based on DF flag
                 if (self.DF)
                 {
@@ -150,7 +151,7 @@ namespace Emulate8086.Processor
                     self.di += 1;
                 }
             }
-            
+
             // If REP prefix active, decrement CX and check
             if (self.repActive)
             {
@@ -162,7 +163,7 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = self.ipStart;
+                    self.ip--;
                 }
             }
         }
@@ -180,14 +181,14 @@ namespace Emulate8086.Processor
             // ODITSZAPC
             // X   XXXXX
 
-            Debug.Assert(0b1010_011_0 == (insByte & 0b11111110));
+            Debug.Assert(0b1010_011_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W
             );
             // Compare string
             // 1010011w
-            
+
             // Check if we're in a REP loop
             if (self.repActive)
             {
@@ -198,18 +199,18 @@ namespace Emulate8086.Processor
                     return;
                 }
             }
-            
+
             // Execute CMPS
             if (self.insW)
             {
                 // Word operation
-                ushort value1 = self.mem.ReadWord(self.ds, self.si);
-                ushort value2 = self.mem.ReadWord(self.es, self.di);
+                ushort value1 = self.memory.wordAt(self.ds, self.si);
+                ushort value2 = self.memory.wordAt(self.es, self.di);
                 ushort result = (ushort)(value1 - value2);
-                
+
                 // Set flags as with CMP instruction
-                self.SetSubtractionFlags(value1, value2, result);
-                
+                self.SetSubtractionFlags(value1, value2, 0, result); // TODO: Correct borrow value?
+
                 // Update SI and DI based on DF flag
                 if (self.DF)
                 {
@@ -225,13 +226,15 @@ namespace Emulate8086.Processor
             else
             {
                 // Byte operation
-                byte value1 = self.mem.ReadByte(self.ds, self.si);
-                byte value2 = self.mem.ReadByte(self.es, self.di);
+                var dssi = self.ds * 16 + self.si;
+                var esdi = self.es * 16 + self.di;
+                byte value1 = self.memory[dssi];
+                byte value2 = self.memory[esdi];
                 byte result = (byte)(value1 - value2);
-                
+
                 // Set flags as with CMP instruction
-                self.SetSubtractionFlags(value1, value2, result);
-                
+                self.SetSubtractionFlags(value1, value2, 0, result); // TODO: Correct borrow value?
+
                 // Update SI and DI based on DF flag
                 if (self.DF)
                 {
@@ -244,12 +247,12 @@ namespace Emulate8086.Processor
                     self.di += 1;
                 }
             }
-            
+
             // If REP prefix active, handle the repeat
             if (self.repActive)
             {
                 self.cx--;
-                
+
                 bool shouldRepeat = false;
                 if (self.repZ)
                 {
@@ -261,7 +264,7 @@ namespace Emulate8086.Processor
                     // REPNE/REPNZ: Repeat while not equal (ZF=0)
                     shouldRepeat = !self.ZF && (self.cx != 0);
                 }
-                
+
                 if (!shouldRepeat)
                 {
                     self.repActive = false;
@@ -269,7 +272,7 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = self.ipStart;
+                    self.ip = (ushort)self.ipStart;
                 }
             }
         }
@@ -286,15 +289,15 @@ namespace Emulate8086.Processor
 
             // ODITSZAPC
             // X   XXXXX
-            
-            Debug.Assert(0b1010_111_0 == (insByte & 0b11111110));
+
+            Debug.Assert(0b1010_111_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W
             );
             // Scan string
             // 1010111w
-            
+
             // Check if we're in a REP loop
             if (self.repActive)
             {
@@ -305,18 +308,18 @@ namespace Emulate8086.Processor
                     return;
                 }
             }
-            
+
             // Execute SCAS
             if (self.insW)
             {
                 // Word operation
                 ushort value1 = self.ax;
-                ushort value2 = self.mem.ReadWord(self.es, self.di);
+                ushort value2 = self.memory.wordAt(self.es, self.di);
                 ushort result = (ushort)(value1 - value2);
-                
+
                 // Set flags as with CMP instruction
-                self.SetSubtractionFlags(value1, value2, result);
-                
+                self.SetSubtractionFlags(value1, value2, 0, result); // TODO: Correct borrow value?
+
                 // Update DI based on DF flag
                 if (self.DF)
                 {
@@ -331,12 +334,12 @@ namespace Emulate8086.Processor
             {
                 // Byte operation
                 byte value1 = (byte)self.ax;
-                byte value2 = self.mem.ReadByte(self.es, self.di);
+                byte value2 = self.memory[self.es * 16 + self.di];
                 byte result = (byte)(value1 - value2);
-                
+
                 // Set flags as with CMP instruction
-                self.SetSubtractionFlags(value1, value2, result);
-                
+                self.SetSubtractionFlags(value1, value2, 0, result); // TODO: Correct borrow value?
+
                 // Update DI based on DF flag
                 if (self.DF)
                 {
@@ -347,12 +350,12 @@ namespace Emulate8086.Processor
                     self.di += 1;
                 }
             }
-            
+
             // If REP prefix active, handle the repeat
             if (self.repActive)
             {
                 self.cx--;
-                
+
                 bool shouldRepeat = false;
                 if (self.repZ)
                 {
@@ -364,7 +367,7 @@ namespace Emulate8086.Processor
                     // REPNE/REPNZ: Repeat while not equal (ZF=0)
                     shouldRepeat = !self.ZF && (self.cx != 0);
                 }
-                
+
                 if (!shouldRepeat)
                 {
                     self.repActive = false;
@@ -372,7 +375,7 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = self.ipStart;
+                    self.ip = (ushort)self.ipStart;
                 }
             }
         }
@@ -387,14 +390,14 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-60
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
-            Debug.Assert(0b1010_110_0 == (insByte & 0b11111110));
+            Debug.Assert(0b1010_110_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W
             );
             // Load string
             // 1010110w
-            
+
             // Check if we're in a REP loop
             if (self.repActive)
             {
@@ -405,13 +408,13 @@ namespace Emulate8086.Processor
                     return;
                 }
             }
-            
+
             // Execute LODS
             if (self.insW)
             {
                 // Word operation
-                self.ax = self.mem.ReadWord(self.ds, self.si);
-                
+                self.ax = self.memory.wordAt(self.ds, self.si);
+
                 // Update SI based on DF flag
                 if (self.DF)
                 {
@@ -425,8 +428,8 @@ namespace Emulate8086.Processor
             else
             {
                 // Byte operation
-                self.ax = (ushort)((self.ax & 0xFF00) | self.mem.ReadByte(self.ds, self.si));
-                
+                self.ax = (ushort)((self.ax & 0xFF00) | self.memory[self.ds * 16 + self.si]);
+
                 // Update SI based on DF flag
                 if (self.DF)
                 {
@@ -437,7 +440,7 @@ namespace Emulate8086.Processor
                     self.si += 1;
                 }
             }
-            
+
             // If REP prefix active, decrement CX and check
             if (self.repActive)
             {
@@ -449,7 +452,7 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = self.ipStart;
+                    self.ip = (ushort)self.ipStart;
                 }
             }
         }
@@ -464,14 +467,14 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-66
             // - Table 4-12. 8086 Instruction Encoding, p. 4-25
 
-            Debug.Assert(0b1010_101_0 == (insByte & 0b11111110));
+            Debug.Assert(0b1010_101_0 == (self.insByte & 0b11111110));
 
             self.DecodeInstruction(
                 InstructionDecoderFlags.W
             );
             // Store string
             // 1010101w
-            
+
             // Check if we're in a REP loop
             if (self.repActive)
             {
@@ -482,13 +485,13 @@ namespace Emulate8086.Processor
                     return;
                 }
             }
-            
+
             // Execute STOS
             if (self.insW)
             {
                 // Word operation
-                self.mem.WriteWord(self.es, self.di, self.ax);
-                
+                self.memory.setWordAt(self.es * 16 + self.di, self.ax);
+
                 // Update DI based on DF flag
                 if (self.DF)
                 {
@@ -502,8 +505,8 @@ namespace Emulate8086.Processor
             else
             {
                 // Byte operation
-                self.mem.WriteByte(self.es, self.di, (byte)self.ax);
-                
+                self.memory[self.es * 16 + self.di] = (byte)self.ax;
+
                 // Update DI based on DF flag
                 if (self.DF)
                 {
@@ -514,7 +517,7 @@ namespace Emulate8086.Processor
                     self.di += 1;
                 }
             }
-            
+
             // If REP prefix active, decrement CX and check
             if (self.repActive)
             {
@@ -526,9 +529,12 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = self.ipStart;
+                    self.ip = (ushort)self.ipStart;
                 }
             }
         }
+        short ipStart;
+        bool repActive;
+        bool repZ;
     }
 }
