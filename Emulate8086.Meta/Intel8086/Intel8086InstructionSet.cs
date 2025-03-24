@@ -376,136 +376,182 @@ public class Intel8086InstructionSet : InstructionSet
         XOR_ImmToRM,
         XOR_ImmToAccum);
     public static Pattern REP { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111111_0, 0b1111011_0).Build();
     public static Def Rep { get; } = new(Tags.Rep, REP);
     public static Pattern MOVS { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111111_0, 0b1010010_0).Build();
     public static Def Movs { get; } = new(Tags.Movs, MOVS);
     public static Pattern CMPS { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111111_0, 0b1010011_0).Build();
     public static Def Cmps { get; } = new(Tags.Cmps, CMPS);
     public static Pattern SCAS { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111111_0, 0b1010111_0).Build();
     public static Def Scas { get; } = new(Tags.Scas, SCAS);
     public static Pattern LODS { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111111_0, 0b1010110_0).Build();
     public static Def Lods { get; } = new(Tags.Lods, LODS);
     public static Pattern STOS { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111111_0, 0b1010101_0).Build();
     public static Def Stos { get; } = new(Tags.Stos, STOS);
-    public static Pattern CALL { get; }
-        = Pattern.NewBuilder().Build();
-    public static Def Call { get; } = new(Tags.Call, CALL);
-    public static Pattern JMP { get; }
-        = Pattern.NewBuilder().Build();
-    public static Def Jmp { get; } = new(Tags.Jmp, JMP);
-    public static Pattern RET { get; }
-        = Pattern.NewBuilder().Build();
-    public static Def Ret { get; } = new(Tags.Ret, RET);
+    public static Pattern CALL_DirectWithinSeg { get; }
+        = Pattern.NewBuilder(0b1110_1000).Build();
+    public static Pattern CALL_IndirectWithinSegment { get; }
+        = Pattern.NewBuilder(0b11111111)
+            .WithModRmOpcode(0b010).Build();
+    public static Pattern CALL_DirectIntersegment { get; }
+        = Pattern.NewBuilder(0b1001_1010).Build();
+    public static Pattern CALL_IndirectIntersegment { get; }
+        = Pattern.NewBuilder(0b1111_1111)
+            .WithModRmOpcode(0b011).Build();
+    public static Def Call { get; } = new(
+        Tags.Call,
+        CALL_DirectWithinSeg,
+        CALL_IndirectWithinSegment,
+        CALL_DirectIntersegment,
+        CALL_IndirectIntersegment);
+    public static Pattern JMP_DirectWithinSeg { get; }
+        = Pattern.NewBuilder(0b1110_1001).Build();
+    public static Pattern JMP_DirectWithinSegShort { get; }
+        = Pattern.NewBuilder(0b1110_1011).Build();
+    public static Pattern JMP_IndirectWithinSegment { get; }
+        = Pattern.NewBuilder(0b11111111)
+            .WithModRmOpcode(0b100).Build();
+    public static Pattern JMP_DirectIntersegment { get; }
+        = Pattern.NewBuilder(0b1110_1010).Build();
+    public static Pattern JMP_IndirectIntersegment { get; }
+        = Pattern.NewBuilder(0b1111_1111)
+            .WithModRmOpcode(0b101).Build();
+    public static Def Jmp { get; } = new(
+        Tags.Jmp,
+        JMP_DirectWithinSeg,
+        JMP_DirectWithinSegShort,
+        JMP_IndirectWithinSegment,
+        JMP_DirectIntersegment,
+        JMP_IndirectIntersegment);
+    public static Pattern RET_WithinSeg { get; }
+        = Pattern.NewBuilder(0b1100_0011).Build();
+    public static Pattern RET_WithinSegImmToSP { get; }
+        = Pattern.NewBuilder(0b1100_0010).Build();
+    public static Pattern RET_Intersegment { get; }
+        = Pattern.NewBuilder(0b1100_1011).Build();
+    public static Pattern RET_IntersegImmToSP { get; }
+        = Pattern.NewBuilder(0b1100_0010).Build();
+    public static Def Ret { get; } = new(
+        Tags.Ret,
+        RET_WithinSeg,
+        RET_WithinSegImmToSP,
+        RET_Intersegment,
+        RET_IntersegImmToSP);
     public static Pattern JE { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0100).Build();
     public static Def Je { get; } = new(Tags.Je, JE);
     public static Pattern JL { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1100).Build();
     public static Def Jl { get; } = new(Tags.Jl, JL);
     public static Pattern JLE { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1110).Build();
     public static Def Jle { get; } = new(Tags.Jle, JLE);
     public static Pattern JB { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0010).Build();
     public static Def Jb { get; } = new(Tags.Jb, JB);
     public static Pattern JBE { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0110).Build();
     public static Def Jbe { get; } = new(Tags.Jbe, JBE);
     public static Pattern JP { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1010).Build();
     public static Def Jp { get; } = new(Tags.Jp, JP);
     public static Pattern JO { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0000).Build();
     public static Def Jo { get; } = new(Tags.Jo, JO);
     public static Pattern JS { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1000).Build();
     public static Def Js { get; } = new(Tags.Js, JS);
     public static Pattern JNE { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0101).Build();
     public static Def Jne { get; } = new(Tags.Jne, JNE);
     public static Pattern JNL { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1101).Build();
     public static Def Jnl { get; } = new(Tags.Jnl, JNL);
     public static Pattern JNLE { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1111).Build();
     public static Def Jnle { get; } = new(Tags.Jnle, JNLE);
     public static Pattern JNB { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0011).Build();
     public static Def Jnb { get; } = new(Tags.Jnb, JNB);
     public static Pattern JNBE { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0111).Build();
     public static Def Jnbe { get; } = new(Tags.Jnbe, JNBE);
     public static Pattern JNP { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1011).Build();
     public static Def Jnp { get; } = new(Tags.Jnp, JNP);
     public static Pattern JNO { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_0001).Build();
     public static Def Jno { get; } = new(Tags.Jno, JNO);
     public static Pattern JNS { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b0111_1001).Build();
     public static Def Jns { get; } = new(Tags.Jns, JNS);
     public static Pattern LOOP { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1110_0010).Build();
     public static Def Loop { get; } = new(Tags.Loop, LOOP);
     public static Pattern LOOPZ { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1110_0001).Build();
     public static Def Loopz { get; } = new(Tags.Loopz, LOOPZ);
     public static Pattern LOOPNZ { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1110_0000).Build();
     public static Def Loopnz { get; } = new(Tags.Loopnz, LOOPNZ);
     public static Pattern JCXZ { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1110_0011).Build();
     public static Def Jcxz { get; } = new(Tags.Jcxz, JCXZ);
-    public static Pattern INT { get; }
-        = Pattern.NewBuilder().Build();
-    public static Def Int { get; } = new(Tags.Int, INT);
+    public static Pattern INT_TypeSpecified { get; }
+        = Pattern.NewBuilder(0b1100_1101).Build();
+    public static Pattern INT_Type3 { get; }
+        = Pattern.NewBuilder(0b1100_1100).Build();
+    public static Def Int { get; } = new(
+        Tags.Int,
+        INT_TypeSpecified,
+        INT_Type3);
     public static Pattern INTO { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1100_1110).Build();
     public static Def Into { get; } = new(Tags.Into, INTO);
     public static Pattern IRET { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1100_1111).Build();
     public static Def Iret { get; } = new(Tags.Iret, IRET);
     public static Pattern CLC { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_1000).Build();
     public static Def Clc { get; } = new(Tags.Clc, CLC);
     public static Pattern CMC { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_0101).Build();
     public static Def Cmc { get; } = new(Tags.Cmc, CMC);
     public static Pattern CLD { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_1100).Build();
     public static Def Cld { get; } = new(Tags.Cld, CLD);
     public static Pattern CLI { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_1010).Build();
     public static Def Cli { get; } = new(Tags.Cli, CLI);
     public static Pattern HLT { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_0100).Build();
     public static Def Hlt { get; } = new(Tags.Hlt, HLT);
     public static Pattern LOCK { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_0000).Build();
     public static Def Lock { get; } = new(Tags.Lock, LOCK);
     public static Pattern STC { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_1001).Build();
     public static Def Stc { get; } = new(Tags.Stc, STC);
     public static Pattern NOP { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1001_0000).Build();
     public static Def Nop { get; } = new(Tags.Nop, NOP);
     public static Pattern STD { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_1101).Build();
     public static Def Std { get; } = new(Tags.Std, STD);
     public static Pattern STI { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1111_1101).Build();
     public static Def Sti { get; } = new(Tags.Sti, STI);
     public static Pattern WAIT { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b1001_1011).Build();
     public static Def Wait { get; } = new(Tags.Wait, WAIT);
     public static Pattern ESC { get; }
-        = Pattern.NewBuilder().Build();
+        = Pattern.NewBuilder(0b11111_000, 0b11011_000)
+            .WithFlags(Flags.ModRM).Build();
     public static Def Esc { get; } = new(Tags.Esc, ESC);
     public override InstructionTag[,] InstructionMatrix { get => throw new NotImplementedException(); protected set => throw new NotImplementedException(); }
 }
