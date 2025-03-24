@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emulate8086.Processor", "Em
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emulate8086.Console", "Emulate8086.Console\Emulate8086.Console.csproj", "{7DCAC195-9D75-4F2C-B0E5-0B216360FF39}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Emulate8086.Meta", "Emulate8086.Meta\Emulate8086.Meta.csproj", "{A0CF63DB-D0DF-4820-B39A-0AB85B23113E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{7DCAC195-9D75-4F2C-B0E5-0B216360FF39}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7DCAC195-9D75-4F2C-B0E5-0B216360FF39}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7DCAC195-9D75-4F2C-B0E5-0B216360FF39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0CF63DB-D0DF-4820-B39A-0AB85B23113E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0CF63DB-D0DF-4820-B39A-0AB85B23113E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0CF63DB-D0DF-4820-B39A-0AB85B23113E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0CF63DB-D0DF-4820-B39A-0AB85B23113E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
