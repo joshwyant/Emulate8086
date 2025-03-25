@@ -1,6 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Emulate8086.Meta;
 
-public class InstructionOpcodePattern
+public class InstructionOpcodePattern : IEquatable<InstructionOpcodePattern>
 {
     public byte OpcodeMask { get; }
     public byte OpcodePattern { get; }
@@ -129,6 +131,19 @@ public class InstructionOpcodePattern
             flags = pattern.Flags;
         }
 
+        public Builder WithOpcode(byte opcode)
+        {
+            opcodeMask = 0xFF;
+            opcodePattern = opcode;
+            return this;
+        }
+        public Builder WithOpcode(byte mask, byte pattern)
+        {
+            opcodeMask = mask;
+            opcodePattern = pattern;
+            return this;
+        }
+
         public Builder WithModRmOpcode(int modRmOpcode)
         {
             this.modRmOpcode = modRmOpcode;
@@ -140,10 +155,27 @@ public class InstructionOpcodePattern
             this.prefixGroup = prefixGroup;
             return this;
         }
+        public Builder WithoutPrefixGroup()
+        {
+            this.prefixGroup = null;
+            return this;
+        }
 
         public Builder WithFlags(InstructionPatternFlags flags)
         {
             this.flags = flags;
+            return this;
+        }
+
+        public Builder WithAdditionalFlags(InstructionPatternFlags additionalFlags)
+        {
+            this.flags |= additionalFlags;
+            return this;
+        }
+
+        public Builder WithoutFlags(InstructionPatternFlags flags)
+        {
+            this.flags &= ~flags;
             return this;
         }
 
@@ -153,13 +185,33 @@ public class InstructionOpcodePattern
         }
     }
 
+    private int? hashCode;
     public override int GetHashCode()
     {
-        return OpcodePattern * 37 + OpcodeMask * 29 + (ModRmOpcode ?? 0) * 11;
+        return hashCode ??= OpcodePattern * 37 + OpcodeMask * 29 + (ModRmOpcode ?? 0) * 11;
+    }
+    public override bool Equals(object? obj)
+    {
+        return ReferenceEquals(this, obj)
+            || (obj is InstructionOpcodePattern other
+                && this == other);  // overloaded operator
     }
 
-    public bool Equals(InstructionOpcodePattern other)
+    public bool Equals(InstructionOpcodePattern? other)
     {
-        return ReferenceEquals(this, other);
+        return other is InstructionOpcodePattern pattern && this == pattern;
+    }
+
+    public static bool operator ==(InstructionOpcodePattern lhs, InstructionOpcodePattern rhs)
+    {
+        return (lhs.OpcodePattern == rhs.OpcodePattern)
+            && (lhs.OpcodeMask == rhs.OpcodeMask)
+            && (lhs.ModRmOpcode.HasValue == rhs.ModRmOpcode.HasValue)
+            && (!lhs.ModRmOpcode.HasValue || lhs.ModRmOpcode.Value != rhs.ModRmOpcode!.Value);
+    }
+
+    public static bool operator !=(InstructionOpcodePattern lhs, InstructionOpcodePattern rhs)
+    {
+        return !(lhs == rhs);
     }
 }

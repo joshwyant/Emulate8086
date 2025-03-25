@@ -1,7 +1,7 @@
 namespace Emulate8086.Meta;
 
 [Flags]
-public enum InstructionPatternFlags
+public enum InstructionPatternFlags : long
 {
     None = 0,
     Byte = 1, // Immediate data can be at least 1 byte
@@ -22,4 +22,9 @@ public enum InstructionPatternFlags
     ModRMSeg = 1 << 15, // ModRM byte can have segment register
     DispB = 1 << 16,
     DispW = 1 << 17,
+    SecondByte = 1 << 18, // Additional byte follows after immediate data
+    SecondWord = 1 << 19, // Additional word follows after immediate data
+    Rel1632 = 1 << 20, // Opcode can have a 16 or 32-bit relative immediate value
+    Mem16Plus16 = 1 << 21,
+    Mem32Plus16 = 1 << 22,
 }
