@@ -300,7 +300,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0010 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // 01110010 disp
@@ -321,7 +321,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0110 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jbe/jna jump on below or equal/not above
@@ -351,7 +351,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0100 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // JE/JZ jump on equal/zero
@@ -383,7 +383,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_1100 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // Logic: https://wikidev.in/wiki/assembly/8086/JL
@@ -406,7 +406,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b01111110 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // JLE/JNG jump on less or equal/not greater
@@ -438,7 +438,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0011 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // Logic: https://wikidev.in/wiki/assembly/8086/jnb
@@ -461,7 +461,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0111 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jnbe/ja jump on not below or equal/above
@@ -491,7 +491,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0101 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jne/jnz jump on not equal/not zero
@@ -523,7 +523,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_1101 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // Logic: https://wikidev.in/wiki/assembly/8086/jnl
@@ -546,7 +546,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_1111 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // JNLE/JG jump on not less or equal/greater
@@ -568,7 +568,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0001 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jump on not overflow
@@ -590,7 +590,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_1011 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jnp/jpo jump on not parity/parity odd
@@ -612,7 +612,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_1001 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jump on not sign
@@ -639,7 +639,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_0000 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jump on overflow
@@ -661,7 +661,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_1010 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jp/jpe jump on parity/parity even
@@ -693,7 +693,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0111_1000 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // Jump on sign
@@ -721,7 +721,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1110_0010 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // loop cx times
@@ -734,7 +734,7 @@ namespace Emulate8086.Processor
             if (self.cx != 0)
             {
                 // Sign-extend byte displacement to a short
-                short disp = (sbyte)self.ins_data;
+                short disp = (sbyte)self.disp;
                 self.jmp(disp);
             }
         }
@@ -752,7 +752,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1110_0001 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // loopz/loope loop while zero/equal
@@ -765,7 +765,7 @@ namespace Emulate8086.Processor
             if (self.cx != 0 && self.ZF)
             {
                 // Sign-extend byte displacement to a short
-                short disp = (sbyte)self.ins_data;
+                short disp = (sbyte)self.disp;
                 self.jmp(disp);
             }
         }
@@ -788,7 +788,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1110_0000 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // loopnz/loopne loop while not zero/not equal
@@ -801,7 +801,7 @@ namespace Emulate8086.Processor
             if (self.cx != 0 && !self.ZF)
             {
                 // Sign-extend byte displacement to a short
-                short disp = (sbyte)self.ins_data;
+                short disp = (sbyte)self.disp;
                 self.jmp(disp);
             }
         }
@@ -826,7 +826,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1110_0011 == self.insByte);
 
             self.DecodeInstruction(
-                InstructionDecoderFlags.Byte
+                InstructionDecoderFlags.DispB
             );
 
             // jump on cx zero
@@ -855,12 +855,12 @@ namespace Emulate8086.Processor
             {
                 case 0b1100_1101:
                     self.DecodeInstruction(
-                        InstructionDecoderFlags.Byte
+                        InstructionDecoderFlags.DispB
                     );
                     // interrupt
                     // type specified
                     // 11001101 type
-                    intType = (byte)self.ins_data;
+                    intType = (byte)self.disp;
                     break;
                 case 0b1100_1100:
                     // type 3
@@ -875,18 +875,31 @@ namespace Emulate8086.Processor
             // Save flags on stack
             self.push((short)self.flags);
 
-            // Clear IF and TF flags
-            self.IF = false;
-            self.TF = false;
-
             // Save CS:IP on stack
             self.push((short)self.cs);
             self.push((short)self.ip);
 
-            // Load new CS:IP from interrupt vector table
-            uint intVectorAddr = (uint)intType * 4;
-            self.ip = self.memory.wordAt((ushort)intVectorAddr);
-            self.cs = self.memory.wordAt((ushort)(intVectorAddr + 2));
+            // Clear IF and TF flags
+            self.IF = false;
+            self.TF = false;
+
+            if (self.interrupt_table[intType] != null)
+            {
+                self.interrupt_table[intType]!(self);
+
+                // Pop IP, CS, and FLAGS from stack
+                // (simulate IRET)
+                self.ip = (ushort)self.pop();
+                self.cs = (ushort)self.pop();
+                self.flags = (Flags)self.pop();
+            }
+            else
+            {
+                // Load new CS:IP from interrupt vector table
+                uint intVectorAddr = (uint)intType * 4;
+                self.ip = self.memory.wordAt((ushort)intVectorAddr);
+                self.cs = self.memory.wordAt((ushort)(intVectorAddr + 2));
+            }
         }
 
         private static void HandleINTO(CPU self)

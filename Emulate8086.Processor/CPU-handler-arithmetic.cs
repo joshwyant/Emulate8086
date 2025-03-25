@@ -123,7 +123,7 @@ namespace Emulate8086.Processor
                     self.SetReg(self.insReg, (ushort)result, self.insW);
                 }
             }
-            else if ((self.insByte & 0b1111_1100) == 0b1000_0011)
+            else if ((self.insByte & 0b1111_1100) == 0b1000_0000)
             {
                 // 1000 00sw | mod 010 r/m | data | data if s:w=01
                 //   Immediate to register/memory
@@ -182,7 +182,7 @@ namespace Emulate8086.Processor
             // 1111111w mod 000 rm
             // Register/memory
             // Part of Group 2 instructions
-            if ((self.insByte & 0b1111_1110) == 0x1111_1110)
+            if ((self.insByte & 0b1111_1110) == 0b1111_1110)
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |

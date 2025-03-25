@@ -36,48 +36,46 @@ namespace Emulate8086.Processor
             {
                 // 100010 d w (88 - 8B)
                 // Register/memory to/from register
-                self.MovRMToFromR(ref csip);
+                self.MovRMToFromR();
             }
             else if ((self.insByte & 0b11111110) == 0b11000110)
             {
                 // 1100011 w (C6 - C7)
                 // Immediate to register/memory
-                self.MovImmToRM(ref csip);
+                self.MovImmToRM();
             }
             else if ((self.insByte & 0b11110000) == 0b10110000)
             {
                 // 1011 w reg (B0 - BF)
                 // Immediate to register
-                self.MovImmToR(ref csip);
+                self.MovImmToR();
             }
             else if ((self.insByte & 0b11111110) == 0b10100000)
             {
                 // 1010000 w (A0 - A1)
                 // 
-                self.MovMemToAccum(ref csip);
+                self.MovMemToAccum();
             }
             else if ((self.insByte & 0b11111110) == 0b10100010)
             {
                 // 1010001 w (A2 - A3)
-                self.MovAccumToMemory(ref csip);
+                self.MovAccumToMemory();
             }
             else if (self.insByte == 0b10001110)
             {
                 // 10001110 (8E)
-                self.MovRMToSegr(ref csip);
+                self.MovRMToSegr();
             }
             else
             {
                 Debug.Assert(0b10001100 == self.insByte);
 
                 // 10001100 (8C)
-                self.MovSegrToRM(ref csip);
+                self.MovSegrToRM();
             }
-
-            self.csip = csip;
         }
 
-        private void MovSegrToRM(ref int csip)
+        private void MovSegrToRM()
         {
             // 10001100 | mod 0 reg r/m
             // Segment register to register/memory
@@ -91,7 +89,7 @@ namespace Emulate8086.Processor
             SetModRMData(GetSeg(insReg));
         }
 
-        private void MovRMToSegr(ref int csip)
+        private void MovRMToSegr()
         {
             // 10001110 | mod 0 reg r/m
             // Register/memory to segment register
@@ -106,7 +104,7 @@ namespace Emulate8086.Processor
             SetSeg(insReg, data);
         }
 
-        private void MovAccumToMemory(ref int csip)
+        private void MovAccumToMemory()
         {
             // 1010001w | addr low | addr high
             // Accumulator to memory
@@ -117,7 +115,7 @@ namespace Emulate8086.Processor
             memory.setDataAt(ins_addr, ax, insW);
         }
 
-        private void MovMemToAccum(ref int csip)
+        private void MovMemToAccum()
         {
             // 1010000w | addr low | addr high
             // Memory to accumulator
@@ -131,7 +129,7 @@ namespace Emulate8086.Processor
             SetReg(Register.AX, ins_addr, insW);
         }
 
-        private void MovImmToR(ref int csip)
+        private void MovImmToR()
         {
             // 1011 w reg | data | data if w=1
             // Immediate to register
@@ -145,7 +143,7 @@ namespace Emulate8086.Processor
             SetReg(insReg, (ushort)ins_data, insW);
         }
 
-        private void MovImmToRM(ref int csip)
+        private void MovImmToRM()
         {
             // 1100011 w | mod 000 rm | data | data if w=1
             // Immediate to register/memory
@@ -163,7 +161,7 @@ namespace Emulate8086.Processor
             }
         }
 
-        private void MovRMToFromR(ref int csip)
+        private void MovRMToFromR()
         {
             // 100010 d w | mod reg r/m
             // Register/memory to/from register

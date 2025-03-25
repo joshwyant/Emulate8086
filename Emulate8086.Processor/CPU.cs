@@ -11,12 +11,47 @@ namespace Emulate8086.Processor
             cs = 0;
             ip = 0;
         }
+        public ushort CS => cs;
+        public ushort IP => ip;
+        public ushort SS => ss;
+        public ushort SP => sp;
+        public ushort DS => ds;
+        public ushort SI => si;
+        public ushort ES => es;
+        public ushort DI => di;
+        public ushort AX => ax;
+        public ushort BX => bx;
+        public ushort CX => cx;
+        public ushort DX => dx;
+        public ushort BP => bp;
+        public byte AH => ah;
+        public byte AL => al;
+        public byte BH => bh;
+        public byte BL => bl;
+        public byte CH => ch;
+        public byte CL => cl;
+        public byte DH => dh;
+        public byte DL => dl;
+        private Action<CPU>?[] interrupt_table = new Action<CPU>?[256];
+        public void HookInterrupt(byte index, Action<CPU> action)
+        {
+            interrupt_table[index] = action;
+        }
 
+        public Instruction NextInstruction => instructionMatrix[memory[csip] >> 4, memory[csip] & 0xF];
+        public Instruction PreviousInstruction => ins;
         Memory memory;
         byte insByte;
         int csip_start;
         Instruction ins;
         Dictionary<int, IDevice> devices = new();
+        public Memory Memory => memory;
+
+        public void Jump(ushort cs, ushort ip)
+        {
+            this.cs = cs;
+            this.ip = ip;
+        }
 
         public void AddDevice(IDevice device, params int[] ports)
         {
@@ -299,8 +334,8 @@ namespace Emulate8086.Processor
             if ((instructionFlags & (InstructionDecoderFlags.Byte | InstructionDecoderFlags.Word)) != 0)
             {
                 var dataByte = memory[csip++];
-                ins_data = insS ? 
-                    (ushort)(short)(sbyte)dataByte : 
+                ins_data = insS ?
+                    (ushort)(short)(sbyte)dataByte :
                     dataByte;
             }
             if ((instructionFlags & InstructionDecoderFlags.Word) != 0)

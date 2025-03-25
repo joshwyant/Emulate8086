@@ -4,7 +4,7 @@
     // References 8088 Instruction Set Index, p. B-18
     // 8088 Instruction Reference, Technical Reference,
     // IBM Personal Computer XT Hardware Refernce Library, 1983
-    enum Instruction
+    public enum Instruction
     {
         None,
         Immediate,

@@ -274,33 +274,33 @@ namespace Emulate8086.Processor
         ushort es
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => register_file[0];
+            get => segment_register_file[0];
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => register_file[0] = value;
+            set => segment_register_file[0] = value;
         }
 
         ushort cs
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => register_file[0];
+            get => segment_register_file[1];
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => register_file[0] = value;
+            set => segment_register_file[1] = value;
         }
 
         ushort ss
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => register_file[0];
+            get => segment_register_file[2];
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => register_file[0] = value;
+            set => segment_register_file[2] = value;
         }
 
         ushort ds
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => register_file[0];
+            get => segment_register_file[3];
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => register_file[0] = value;
+            set => segment_register_file[3] = value;
         }
 
         ushort ip;
