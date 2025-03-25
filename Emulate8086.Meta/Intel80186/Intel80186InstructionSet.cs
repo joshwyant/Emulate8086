@@ -184,9 +184,9 @@ public class Intel80186InstructionSet : Intel8086.Intel8086InstructionSet
 
     public static Def Bound { get; } = new(Tags.Bound, BOUND);
     public static Def Enter { get; } = new(Tags.Enter, ENTER);
-    public static Def Ins { get; } = new(Tags.Insb, INS);
+    public static Def Ins { get; } = new(Tags.Ins, INS);
     public static Def Leave { get; } = new(Tags.Leave, LEAVE);
-    public static Def Outs { get; } = new(Tags.Outsb, OUTS);
+    public static Def Outs { get; } = new(Tags.Outs, OUTS);
     public static Def Popa { get; } = new(Tags.Popa, POPA);
     public static Def Pusha { get; } = new(Tags.Pusha, PUSHA);
 
