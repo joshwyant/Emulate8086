@@ -9,6 +9,8 @@ namespace Emulate8086.Processor
             contents = new byte[size];
         }
 
+        public int Size => contents.Length;
+
         byte[] contents;
 
         public byte this[int index]

@@ -126,7 +126,8 @@ namespace Emulate8086.Processor
 
             // Execute
             // AX and AL
-            SetReg(Register.AX, ins_addr, insW);
+            var val = memory.dataAt(ins_addr, insW); // TODO: Segment prefix?
+            SetReg(Register.AX, val, insW);
         }
 
         private void MovImmToR()

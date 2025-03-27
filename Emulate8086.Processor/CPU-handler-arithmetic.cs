@@ -38,7 +38,10 @@ namespace Emulate8086.Processor
                 a = self.GetModRMData();
                 b = self.GetReg(self.insReg, self.insW);
                 result = a + b;
-                if (self.insD)
+                // From page 4-19 of Intel User's Manual:
+                // D = 0: Instruction source is specified in REG field
+                // D = 1: Instruction destination is specified in REG field
+                if (!self.insD)
                 {
                     self.SetModRMData((ushort)result);
                 }
@@ -114,7 +117,7 @@ namespace Emulate8086.Processor
                 a = self.GetModRMData();
                 b = self.GetReg(self.insReg, self.insW);
                 result += a + b;
-                if (self.insD)
+                if (!self.insD)
                 {
                     self.SetModRMData((ushort)result);
                 }
@@ -187,9 +190,7 @@ namespace Emulate8086.Processor
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
                     InstructionDecoderFlags.ModRM |
-                    InstructionDecoderFlags.ModRMOpcode |
-                    InstructionDecoderFlags.Byte |
-                    InstructionDecoderFlags.Word
+                    InstructionDecoderFlags.ModRMOpcode
                 );
                 Debug.Assert(self.insExtOpcode == 0b000);
                 result = self.GetModRMData() + 1;

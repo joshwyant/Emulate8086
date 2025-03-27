@@ -55,7 +55,7 @@ namespace Emulate8086.Processor
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetReg(Register r, ushort val)
         {
-            segment_register_file[(int)r] = val;
+            register_file[(int)r] = val;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -331,12 +331,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.CF :
-                        flags & ~Flags.CF;
-                }
+                flags = value ?
+                    flags | Flags.CF :
+                    flags & ~Flags.CF;
             }
         }
 
@@ -347,12 +344,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.PF :
-                        flags & ~Flags.PF;
-                }
+                flags = value ?
+                    flags | Flags.PF :
+                    flags & ~Flags.PF;
             }
         }
 
@@ -363,12 +357,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.AF :
-                        flags & ~Flags.AF;
-                }
+                flags = value ?
+                    flags | Flags.AF :
+                    flags & ~Flags.AF;
             }
         }
 
@@ -379,12 +370,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.ZF :
-                        flags & ~Flags.ZF;
-                }
+                flags = value ?
+                    flags | Flags.ZF :
+                    flags & ~Flags.ZF;
             }
         }
 
@@ -395,12 +383,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.SF :
-                        flags & ~Flags.SF;
-                }
+                flags = value ?
+                    flags | Flags.SF :
+                    flags & ~Flags.SF;
             }
         }
 
@@ -411,12 +396,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.TF :
-                        flags & ~Flags.TF;
-                }
+                flags = value ?
+                    flags | Flags.TF :
+                    flags & ~Flags.TF;
             }
         }
 
@@ -427,12 +409,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.IF :
-                        flags & ~Flags.IF;
-                }
+                flags = value ?
+                    flags | Flags.IF :
+                    flags & ~Flags.IF;
             }
         }
 
@@ -443,12 +422,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.DF :
-                        flags & ~Flags.DF;
-                }
+                flags = value ?
+                    flags | Flags.DF :
+                    flags & ~Flags.DF;
             }
         }
 
@@ -459,12 +435,9 @@ namespace Emulate8086.Processor
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (value)
-                {
-                    flags = value ?
-                        flags | Flags.OF :
-                        flags & ~Flags.OF;
-                }
+                flags = value ?
+                    flags | Flags.OF :
+                    flags & ~Flags.OF;
             }
         }
 

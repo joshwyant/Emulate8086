@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Emulate8086.Processor
 {
@@ -383,7 +384,7 @@ namespace Emulate8086.Processor
             is_immediate_word = w_accepted_flag ? wflag_enabled ? insW : true : false;
         }
 
-        public void Clock()
+        public void Clock(bool in_breakpoint = false)
         {
             csip_start = csip;
 
@@ -397,6 +398,10 @@ namespace Emulate8086.Processor
             var impl = instructionImpls[ins];
 
             // Call the instruction
+            if (in_breakpoint)
+            {
+                Debugger.Break();
+            }
             impl(this);
             if (!is_prefix)
             {

@@ -72,7 +72,7 @@ namespace Emulate8086.Processor
 
                 // 000 seg 110
                 // Segment register
-                self.push((short)self.insReg);
+                self.push((short)self.GetSeg(self.insReg));
             }
         }
 

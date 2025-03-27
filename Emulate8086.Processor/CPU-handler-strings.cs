@@ -272,7 +272,7 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = (ushort)self.ipStart;
+                    self.csip = self.csip_start;
                 }
             }
         }
@@ -375,7 +375,7 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = (ushort)self.ipStart;
+                    self.csip = self.csip_start;
                 }
             }
         }
@@ -452,7 +452,7 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = (ushort)self.ipStart;
+                    self.csip = self.csip_start;
                 }
             }
         }
@@ -529,11 +529,10 @@ namespace Emulate8086.Processor
                 else
                 {
                     // Repeat the instruction by adjusting IP
-                    self.ip = (ushort)self.ipStart;
+                    self.csip = self.csip_start;
                 }
             }
         }
-        short ipStart;
         bool repActive;
         bool repZ;
     }

@@ -19,7 +19,6 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-52
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
-            ushort returnOffset = (ushort)(self.ip);
             ushort newOffset = 0;
             ushort newSegment = 0;
             bool intersegment = false;
@@ -85,7 +84,7 @@ namespace Emulate8086.Processor
 
             // Push return address onto stack
             self.sp -= 2;
-            self.memory.setWordAt(self.ss, self.sp, returnOffset);
+            self.memory.setWordAt(self.ss, self.sp, self.ip);
 
             if (intersegment)
             {
@@ -133,7 +132,7 @@ namespace Emulate8086.Processor
                     // 11000010 data-lo data-hi
                     imm = (ushort)self.ins_data;
                     break;
-                case 0b1100_1001:
+                case 0b1100_1011:
                     // Intersegment
                     // 11001011
                     intersegment = true;
@@ -899,6 +898,10 @@ namespace Emulate8086.Processor
                 uint intVectorAddr = (uint)intType * 4;
                 self.ip = self.memory.wordAt((ushort)intVectorAddr);
                 self.cs = self.memory.wordAt((ushort)(intVectorAddr + 2));
+                if (self.csip == 0)
+                {
+                    Debugger.Break();
+                }
             }
         }
 
@@ -965,7 +968,7 @@ namespace Emulate8086.Processor
         #endregion
 
         #region Helpers
-        private void jmp(short disp) => csip = csip_start + disp;
+        private void jmp(short disp) => csip += disp;
 
         private void jmp_disp() => jmp(disp);
 
