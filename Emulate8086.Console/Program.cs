@@ -237,13 +237,59 @@ while (!stop)
         Console.Write("> ");
         command = Console.ReadLine();
     }
-    switch (command)
+    switch (command.Split()[0])
     {
         case "exit":
             stop = true;
             break;
         case "c":
             prompting = false;
+            break;
+        case "x":
+            try
+            {
+                ushort seg = 0;
+                uint offs = 0;
+                var part2 = command.Split()[1];
+                uint FromHex(string str)
+                {
+                    if (str.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        str = str.Substring(2);
+                    }
+                    else if (str.EndsWith("h", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        str = str.Remove(str.Length - 1);
+                    }
+                    return uint.Parse(str, System.Globalization.NumberStyles.HexNumber);
+                }
+                if (part2.Contains(':'))
+                {
+                    var addrs = part2.Split(':');
+                    seg = (ushort)FromHex(addrs[0]);
+                    offs = (ushort)FromHex(addrs[1]);
+                }
+                else
+                {
+                    offs = FromHex(part2);
+                    if (offs > 0xFFFF)
+                    {
+                        seg = (ushort)((offs << 12) & 0xF000);
+                        offs &= 0xFFFF;
+                    }
+                }
+                for (var i = 0; i < 256; i += 16, offs += 16)
+                {
+
+                    Console.Write($"       {seg:X4}:{offs:X4}    ");
+                    MemoryWindow(seg, (ushort)offs);
+                }
+                Console.WriteLine();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
             break;
         case "s":
         case "":
