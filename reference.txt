@@ -310,8 +310,8 @@ C0
 C1	
 C2	RET	SP + imm
 C3	RET
-C4	LES	rm
-C5	LDS	rm
+C4	LES	r, rm
+C5	LDS	r, rm
 C6	MOVB	rm, imm8
 C7	MOVW	rm, immw
 C8	

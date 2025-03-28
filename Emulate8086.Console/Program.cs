@@ -7,18 +7,18 @@ bool prompting = false;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
 HashSet<int> break_addrs = [
-    //0x7C00,
+    0x7C00,
     //0x0500,
     //0x0700,
     //0x70 * 16 + 0x232,
-    0x9F84 * 16 + 0x34B //0x442,//0x420 //34B // 38F // 442
+    //0x9F84 * 16 + 0x34B //0x442,//0x420 //34B // 38F // 442
 ];
 
 var disk = "/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
 var file = File.OpenRead(disk);
-int sectorsPerTrack = 18, heads = 2;
+int sectorsPerTrack = 18, heads = 2, drive = 0x00;
 
-var mem = new Memory(655360); // 640KB
+var mem = new Memory(1024 * 1024); // 1mb // 640KB
 var cpu = new CPU(mem);
 
 bool stop = false;
@@ -115,6 +115,46 @@ for (var i = 0; i < 512; i++)
 {
     mem[0x7C00 + i] = bootsect[i];
 }
+// Set the drive number
+cpu.SetReg8(Register.DL, (byte)drive);
+
+// Set up the diskette parameter table
+// http://www.techhelpmanual.com/256-int_1eh__diskette_parameter_pointer.html
+// Do what BOCHS does
+ushort dptSeg = 0xf000;
+ushort dptOff = 0xefde;
+ushort dptLoc = 0x0078;
+int dptPtr = dptSeg * 16 + dptOff;
+// First, store a pointer in the IVT (int 1Eh, the 30th entry)
+cpu.Memory.setWordAt(dptLoc, dptOff);
+cpu.Memory.setWordAt(dptLoc + 2, dptSeg);
+// rSrtHdUnld
+var SRTStepRateTime = 0xF;
+var headUnloadTime = 10;
+cpu.Memory[dptPtr] = (byte)(SRTStepRateTime | (headUnloadTime << 4));
+// rDmaHdLd
+byte useDma = 0;
+byte headLoadTime = 1;
+cpu.Memory[dptPtr + 1] = (byte)(useDma | (headLoadTime << 1));
+// bMotorOff, 55-ms increments before turning disk motor off
+cpu.Memory[dptPtr + 2] = 37;
+// bSectSize (0=128, 1=256, 2=512, 3=1024)
+cpu.Memory[dptPtr + 3] = 2;
+// bLastTrack EOT (last sector on track)
+cpu.Memory[dptPtr + 4] = 18;
+// bGapLen
+cpu.Memory[dptPtr + 5] = 27;
+// bDTL Data Transfer Length max when length not set
+cpu.Memory[dptPtr + 6] = 0xFF;
+// bGapFmt Gap length for format operation
+cpu.Memory[dptPtr + 7] = 108;
+// bFillChar fill character for format (normally f6, '÷')
+cpu.Memory[dptPtr + 8] = 0xF6;
+// bHdSettle Head settle time in ms
+cpu.Memory[dptPtr + 9] = 15;
+// bMotorOn motor startup time in 1/8 sec. intervals
+cpu.Memory[dptPtr + 10] = 8;
+
 
 cpu.Jump(0x0000, 0x7C00);
 
@@ -205,7 +245,9 @@ while (!stop)
         case "c":
             prompting = false;
             break;
+        case "s":
         case "":
+            if (command == "s") prompting = true;
             cpu.Clock(in_breakpoint && break_with_debugger);
             in_breakpoint = false;
             // TODO: Disassembly

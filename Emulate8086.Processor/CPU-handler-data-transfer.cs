@@ -8,13 +8,13 @@ namespace Emulate8086.Processor
 {
     public partial class CPU
     {
-        private void push(short data)
+        public void Push(short data)
         {
             memory[ss, --sp] = (byte)((data >> 8) & 0xFF);
             memory[ss, --sp] = (byte)(data & 0xFF);
         }
 
-        private short pop()
+        public short Pop()
         {
             var lo = memory[ss, sp++];
             var hi = memory[ss, sp++];
@@ -48,7 +48,7 @@ namespace Emulate8086.Processor
                 Debug.Assert(self.insExtOpcode == 0b110);
 
                 // Execute
-                self.push((short)self.GetModRMData());
+                self.Push((short)self.GetModRMData());
             }
             else if (self.insByte >> 3 == 0b01010)
             {
@@ -61,7 +61,7 @@ namespace Emulate8086.Processor
                 // Register
 
                 // Execute
-                self.push((short)self.GetReg16(self.insReg));
+                self.Push((short)self.GetReg16(self.insReg));
             }
             else
             {
@@ -72,7 +72,7 @@ namespace Emulate8086.Processor
 
                 // 000 seg 110 (06, 0E, 16, 1E)
                 // Segment register
-                self.push((short)self.GetSeg(self.insReg));
+                self.Push((short)self.GetSeg(self.insReg));
             }
         }
 
@@ -98,7 +98,7 @@ namespace Emulate8086.Processor
 
                 Debug.Assert(self.insExtOpcode == 0b000);
 
-                self.SetModRMData((ushort)self.pop());
+                self.SetModRMData((ushort)self.Pop());
             }
             else if (self.insByte >> 3 == 0b01011)
             {
@@ -109,7 +109,7 @@ namespace Emulate8086.Processor
                 // 01011 reg (58 - 5F)
                 // Register
 
-                self.SetReg(self.insReg, (ushort)self.pop());
+                self.SetReg(self.insReg, (ushort)self.Pop());
             }
             else
             {
@@ -119,7 +119,7 @@ namespace Emulate8086.Processor
                 );
                 // 000 seg 111 (07, 0F, 17, 1F)
                 // Segment register
-                self.SetSeg(self.insReg, (ushort)self.pop());
+                self.SetSeg(self.insReg, (ushort)self.Pop());
             }
         }
 
@@ -417,7 +417,7 @@ namespace Emulate8086.Processor
             // Push flags
 
             // Push flags register onto stack
-            self.push((short)self.flags);
+            self.Push((short)self.flags);
         }
 
         private static void HandlePOPF(CPU self)
@@ -439,7 +439,7 @@ namespace Emulate8086.Processor
             // Pop flags
 
             // Pop value from stack and set as flags register
-            self.flags = (Flags)self.pop();
+            self.flags = (Flags)self.Pop();
         }
         #endregion
     }

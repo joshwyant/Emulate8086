@@ -877,11 +877,11 @@ namespace Emulate8086.Processor
             }
 
             // Save flags on stack
-            self.push((short)self.flags);
+            self.Push((short)self.flags);
 
             // Save CS:IP on stack
-            self.push((short)self.cs);
-            self.push((short)self.ip);
+            self.Push((short)self.cs);
+            self.Push((short)self.ip);
 
             // Clear IF and TF flags
             self.IF = false;
@@ -893,9 +893,9 @@ namespace Emulate8086.Processor
 
                 // Pop IP, CS, and FLAGS from stack
                 // (simulate IRET)
-                self.ip = (ushort)self.pop();
-                self.cs = (ushort)self.pop();
-                self.flags = (Flags)self.pop();
+                self.ip = (ushort)self.Pop();
+                self.cs = (ushort)self.Pop();
+                self.flags = (Flags)self.Pop();
             }
             else
             {
@@ -931,15 +931,15 @@ namespace Emulate8086.Processor
             if (self.OF)
             {
                 // Save flags on stack
-                self.push((short)self.flags);
+                self.Push((short)self.flags);
 
                 // Clear IF and TF flags
                 self.IF = false;
                 self.TF = false;
 
                 // Save CS:IP on stack
-                self.push((short)self.cs);
-                self.push((short)self.ip);
+                self.Push((short)self.cs);
+                self.Push((short)self.ip);
 
                 // Load new CS:IP from interrupt vector 4
                 uint intVectorAddr = 4 * 4;
@@ -966,9 +966,9 @@ namespace Emulate8086.Processor
             // 11001111 (CF)
 
             // Pop IP, CS, and FLAGS from stack
-            self.ip = (ushort)self.pop();
-            self.cs = (ushort)self.pop();
-            self.flags = (Flags)self.pop();
+            self.ip = (ushort)self.Pop();
+            self.cs = (ushort)self.Pop();
+            self.flags = (Flags)self.Pop();
         }
         #endregion
 
