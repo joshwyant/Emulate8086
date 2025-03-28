@@ -56,7 +56,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.Z
             );
             // Repeat
-            // 1111001z
+            // 1111001z (F2 - F3)
 
             // Store the repeat prefix state
             self.repActive = true;
@@ -72,7 +72,7 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-61
 
-            // 1010010w
+            // 1010010w (A5)
             HandleMOVS(self);
         }
 
@@ -81,7 +81,7 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - Table 2-21. Instruction Set Reference Data, p. 2-61
 
-            // 1010010w
+            // 1010010w (A4)
             HandleMOVS(self);
         }
 
@@ -100,7 +100,7 @@ namespace Emulate8086.Processor
             self.DecodeInstruction(
                 InstructionDecoderFlags.W
             );
-            // 1010010w
+            // 1010010w (A4 - A5)
 
             // Check if we're in a REP loop
             if (self.repActive)
@@ -187,7 +187,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.W
             );
             // Compare string
-            // 1010011w
+            // 1010011w (A6 - A7)
 
             // Check if we're in a REP loop
             if (self.repActive)
@@ -296,7 +296,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.W
             );
             // Scan string
-            // 1010111w
+            // 1010111w (AE - AF)
 
             // Check if we're in a REP loop
             if (self.repActive)
@@ -396,7 +396,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.W
             );
             // Load string
-            // 1010110w
+            // 1010110w (AC - AD)
 
             // Check if we're in a REP loop
             if (self.repActive)
@@ -473,7 +473,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.W
             );
             // Store string
-            // 1010101w
+            // 1010101w (AA - AB)
 
             // Check if we're in a REP loop
             if (self.repActive)

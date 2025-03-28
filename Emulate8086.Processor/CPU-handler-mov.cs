@@ -77,7 +77,7 @@ namespace Emulate8086.Processor
 
         private void MovSegrToRM()
         {
-            // 10001100 | mod 0 reg r/m
+            // 10001100 (8C) | mod 0 reg r/m
             // Segment register to register/memory
             DecodeInstruction(
                 InstructionDecoderFlags.ModRM |
@@ -91,7 +91,7 @@ namespace Emulate8086.Processor
 
         private void MovRMToSegr()
         {
-            // 10001110 | mod 0 reg r/m
+            // 10001110 (8E) | mod 0 reg r/m
             // Register/memory to segment register
             DecodeInstruction(
                 InstructionDecoderFlags.ModRM |
@@ -106,7 +106,7 @@ namespace Emulate8086.Processor
 
         private void MovAccumToMemory()
         {
-            // 1010001w | addr low | addr high
+            // 1010001w (A2 - A3) | addr low | addr high
             // Accumulator to memory
             DecodeInstruction(
                 InstructionDecoderFlags.W |
@@ -117,7 +117,7 @@ namespace Emulate8086.Processor
 
         private void MovMemToAccum()
         {
-            // 1010000w | addr low | addr high
+            // 1010000w (A0 - A1) | addr low | addr high
             // Memory to accumulator
             DecodeInstruction(
                 InstructionDecoderFlags.W |
@@ -132,7 +132,7 @@ namespace Emulate8086.Processor
 
         private void MovImmToR()
         {
-            // 1011 w reg | data | data if w=1
+            // 1011 w reg (B0 - BF) | data | data if w=1
             // Immediate to register
             DecodeInstruction(
                 InstructionDecoderFlags.Reg |
@@ -146,7 +146,7 @@ namespace Emulate8086.Processor
 
         private void MovImmToRM()
         {
-            // 1100011 w | mod 000 rm | data | data if w=1
+            // 1100011 w (C3) | mod 000 rm | data | data if w=1
             // Immediate to register/memory
             DecodeInstruction(
                 InstructionDecoderFlags.W |
@@ -156,15 +156,13 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.Word);
 
             // Execute
-            if (insExtOpcode == 0b000)
-            {
-                SetModRMData(ins_data);
-            }
+            Debug.Assert(insExtOpcode == 0b000);
+            SetModRMData(ins_data);
         }
 
         private void MovRMToFromR()
         {
-            // 100010 d w | mod reg r/m
+            // 100010 d w (88 - 8B) | mod reg r/m
             // Register/memory to/from register
             DecodeInstruction(
                 InstructionDecoderFlags.W |

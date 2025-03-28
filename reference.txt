@@ -1,0 +1,436 @@
+AAA	
+AAD	
+AAM	
+AAS	
+ADC	
+ADD	
+AND	
+CALL	
+CBW	
+CLC	
+CLD	
+CLI	
+CMC	
+CMP	
+CMPS	
+CS:	
+CWD	
+DAA	
+DAS	
+DEC	
+DS:	
+ES:	
+ESC	
+Grp 1	
+Grp 2	
+HLT	
+Immed	
+IN	
+INC	
+INT	
+INTO	
+IRET	
+JB	
+JBE	
+JCXZ	
+JE	
+JL	
+JLE	
+JNB	
+JNBE	
+JNE	
+JNL	
+JNLE	
+JNO	
+JNP	
+JNS	
+JO	
+JP	
+JS	
+LAHF	
+LDS	
+LEA	
+LES	
+LOCK	
+LOOPNZ	
+LOOPZ	
+LODS	
+MOV	
+MOVS	
+NOP	
+OUT	
+OR	
+POP	
+POPF	
+PUSH	
+PUSHF	
+REP	
+RET	
+SAHF	
+SBB	
+SCAS	
+Shift	
+SS:	
+STC	
+STD	
+STI	
+SUB	
+STOS	
+TEST	
+WAIT	
+XCHG	
+XLAT	
+XOR	
+
+00	ADDB	rm, r
+01	ADDW 	rm, r
+02	ADDB	r, rm
+03	ADDB	r, rm
+04	ADDB	al, imm
+05	ADDW	ax, imm
+06	PUSH	ES
+07	POP	ES
+08	ORB	rm, r
+09	ORW	rm, r
+0A	ORB	r, rm
+0B	ORW	r, rm
+0C	ORB	imm
+0D	ORW	imm
+0E	PUSH	CS
+0F	
+10	ADCB	rm, r
+11	ADCW	rm, r
+12	ADCB	r, rm
+13	ADCW	r, rm
+14	ADCB	imm
+15	ADCW	imm
+16	PUSH	SS
+17	POP	SS
+18	SBBB	rm, r
+19	SBBW	rm, r
+1A	SBBB	r, rm
+1B	SBBW	r, rm
+1C	SBBB	imm
+1D	SBBW	imm
+1E	PUSH	DS
+1F	POP	DS
+20	ANDB	rm, r
+21	ANDW	rm, r
+22	ANDB	r, rm
+23	ANDW	r, rm
+24	ANDB	imm
+25	ANDW	imm
+26	ES:
+27	DAA
+28	SUBB	rm, r
+29	SUBW	rm, r
+2A	SUBB	r, rm
+2B	SUBW	r, rm
+2C	SUBB	imm
+2D	SUBW	imm
+2E	CS:
+2F	DAS
+30	XORB	rm, r
+31	XORW	rm, r
+32	XORB	r, rm
+33	XORW	r, rm
+34	XORB	imm
+35	XORW	imm
+36	SS:
+37	AAA
+38	CMPB	rm, r
+39	CMPW	rm, r
+3A	CMPB	r, rm
+3B	CMPW	r, rm
+3C	CMPB	imm
+3D	CMPW	imm
+3E	DS:
+3F	AAS
+40	INC	AX
+41	INC	CX
+42	INC	DX
+43	INC	BX
+44	INC	SP
+45	INC	BP
+46	INC	SI
+47	INC	DI
+48	DEC	AX
+49	DEC	CX
+4A	DEC	DX
+4B	DEC	BX
+4C	DEC	SP
+4D	DEC	BP
+4E	DEC	SI
+4F	DEC	DI
+50	PUSH	AX
+51	PUSH	CX
+52	PUSH	DX
+53	PUSH	BX
+54	PUSH	SP
+55	PUSH	BP
+56	PUSH	SI
+57	PUSH	DI
+58	POP	AX
+59	POP	CX
+5A	POP	DX
+5B	POP	BX
+5C	POP	SP
+5D	POP	BP
+5E	POP	SI
+5F	POP	DI
+60	
+61	
+62	
+63	
+64	
+65	
+66	
+67	
+68	
+69	
+6A	
+6B	
+6C	
+6D	
+6E	
+6F	
+70	JO
+71	JNO
+72	JB/JNAE
+73	JNB/JAE
+74	JE/JZ
+75	JNE/JNZ
+76	JBE/JNA
+77	JNBE/JA
+78	JS
+79	JNS
+7A	JP/JPE
+7B	JNP/JPO
+7C	JL/JNGE
+7D	JNL/JGE
+7E	JLE/JNG
+7F	JNLE/JG
+80 	Immedb
+   /0	ADD	rm, imm8
+   /1	OR	rm, imm8
+   /2	ADC	rm, imm8
+   /3	SBB	rm, imm8
+   /4	AND	rm, imm8
+   /5	SUB	rm, imm8
+   /6	XOR	rm, imm8
+   /7	CMP	rm, imm8
+81 	Immedw
+   /0	ADD	rm, immw
+   /1	OR	rm, immw
+   /2	ADC	rm, immw
+   /3	SBB	rm, immw
+   /4	AND	rm, immw
+   /5	SUB	rm, immw
+   /6	XOR	rm, immw
+   /7	CMP	rm, immw
+82 	Immedb
+   /0	ADDX	rm, imm8
+   /1	ORX	rm, imm8
+   /2	ADCX	rm, imm8
+   /3	SBBX	rm, imm8
+   /4	ANDX	rm, imm8
+   /5	SUBX	rm, imm8
+   /6	XORX	rm, imm8
+   /7	CMPX	rm, imm8
+83 	Immedx
+   /0	ADDX	rm, imm8
+   /1	ORX	rm, imm8
+   /2	ADCX	rm, imm8
+   /3	SBBX	rm, imm8
+   /4	ANDX	rm, imm8
+   /5	SUBX	rm, imm8
+   /6	XORX	rm, imm8
+   /7	CMPX	rm, imm8
+84	TESTB	r, rm
+85	TESTW	r, rm
+86	XCHGB	r, rm
+87	XCHGW	r, rm
+88	MOVB	rm, r
+89	MOVW	rm, r
+8A	MOVB	r, rm
+8B	MOVW	r, rm
+8C	MOV	rm, seg
+8D	LEA	r, rm
+8E	MOV	seg, rm
+8F	POP	rm
+90	XCHG	ax
+91	XCHG	cx
+92	XCHG	dx
+93	XCHG	bx
+94	XCHG	sp
+95	XCHG	bp
+96	XCHG	si
+97	XCHG	di
+98	CBW	ah, al
+99	CWD	dx, ax
+9A	CALL	seg:off
+9B	WAIT
+9C	PUSHF
+9D	POPF
+9E	SAHF	ah
+9F	LAHF	ah
+A0	MOV	al, mem
+A1	MOV	ax, mem
+A2	MOV	mem, al
+A3	MOV	mem, ax
+A4	MOVSW	[es:di], [ds:si]
+A5	MOVSB	[es:di], [ds:si]
+A6	CMPSB	[es:di], [ds:si]
+A7	CMPSW	[es:di], [ds:si]
+A8	TESTB	imm8
+A9	TESTW	immw
+AA	STOSB	[es:di], al
+AB	STOSW	[es:di], ax
+AC	LODSB	al, [ds:si]
+AD	LODSW   ax, [ds:si]
+AE	SCASB	al, [es:di]
+AF	SCASW	ax, [es:di]
+B0	MOVB	al, imm8
+B1	MOVB	cl, imm8
+B2	MOVB	dl, imm8
+B3	MOVB	bl, imm8
+B4	MOVB	ah, imm8
+B5	MOVB	ch, imm8
+B6	MOVB	dh, imm8
+B7	MOVB	bh, imm8
+B8	MOVW	ax, immw
+B9	MOVW	cx, immw
+BA	MOVW	dx, immw
+BB	MOVW	bx, immw
+BC	MOVW	sp, immw
+BD	MOVW	bp, immw
+BE	MOVW	si, immw
+BF	MOVW	di, immw
+C0	
+C1	
+C2	RET	SP + imm
+C3	RET
+C4	LES	rm
+C5	LDS	rm
+C6	MOVB	rm, imm8
+C7	MOVW	rm, immw
+C8	
+C9	
+CA	RET	FAR SP + imm
+CB	RET	FAR
+CC	INT	3
+CD	INT	imm8
+CE	INTO
+CF	IRET
+D0 	ShiftB
+   /0	ROLB	rm
+   /1	RORB	rm
+   /2	RCLB	rm
+   /3	RCRB	rm
+   /4	SHL/SALB	rm
+   /5	SHRB	rm
+   /6
+   /7	SAR	rm
+D1 	ShiftW
+   /0	ROLW	rm
+   /1	RORW	rm
+   /2	RCLW	rm
+   /3	RCRW	rm
+   /4	SHL/SALW	rm
+   /5	SHRW	rm
+   /6
+   /7	SARW	rm
+D2 	ShiftvB
+   /0	ROLB	rm
+   /1	RORB	rm
+   /2	RCLB	rm
+   /3	RCRB	rm
+   /4	SHL/SALB	rm
+   /5	SHRB	rm
+   /6
+   /7	SARB	rm
+D3 	ShiftvW
+   /0	ROLW	rm
+   /1	RORW	rm
+   /2	RCLW	rm
+   /3	RCRW	rm
+   /4	SHL/SALW	rm
+   /5	SHRW	rm
+   /6
+   /7	SARW	rm
+D4	AAM
+D5	AAD
+D6	
+D7	XLAT	al, bx
+D8	ESC	0
+D9	ESC	1
+DA	ESC	2
+DB	ESC	3
+DC	ESC	4
+DD	ESC	5
+DE	ESC	6
+DF	ESC	7
+E0	LOOPNZ/E
+E1	LOOPZ/E
+E2	LOOP
+E3	JCXZ
+E4	INB	imm16
+E5	INW	imm16
+E6	OUTB	imm16
+E7	OUTW	imm16
+E8	CALL	dispw
+E9	JMP	dispw
+EA	JMP	FAR seg:offset
+EB	JMP	dispb
+EC	INB	dl
+ED	INW	dx
+EE	OUTB	dl
+EF	OUTW	dx
+F0	LOCK
+F1	
+F2	REP
+F3	REPZ
+F4	HLT
+F5	CMC
+F6 	Grp1B
+   /0	TESTB	rm
+   /1	
+   /2	NOTB	rm
+   /3	NEG	rm
+   /4	MUL	al, rm
+   /5	IMUL	al, rm
+   /6	DIV	al, rm
+   /7	IDIV	al, rm
+F7 	Grp1W
+   /0	TESTW	rm
+   /1	
+   /2	NOTW	rm
+   /3	NEGW	rm
+   /4	MUL	ax, rm
+   /5	IMUL	ax, rm	
+   /6	DIV	ax, rm
+   /7	IDIV	ax, rm
+F8	CLC
+F9	STC
+FA	CLI
+FB	STI
+FC	CLD
+FD	STD
+FE 	Grp2B
+   /0	INCB	rm
+   /1	DECB	rm
+   /2	CALLB	[rm]		(invalid)
+   /3	CALLB	FAR [rm]	(invalid)
+   /4	JMPB	[rm]		(invalid)
+   /5	JMPB	FAR [rm]	(invalid)
+   /6	PUSHB	rm
+   /7
+FF 	Grp2W
+   /0	INCW	rm
+   /1	DECW	rm
+   /2	CALL	[rm mem]
+   /3	CALL	FAR [rm mem]
+   /4	JMP	[rm mem]
+   /5	JMP	FAR [rm mem]
+   /6	PUSHW	rm
+   /7

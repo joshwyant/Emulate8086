@@ -157,7 +157,7 @@ namespace Emulate8086.Processor
                     else // mod/rm = 00/110 (Disp0/BP)
                     {
                         // This is a special case:
-                        // Return DISP directly as mem. addr.
+                        // Return effective address directly as mem. addr.
                         modrm_eff_addr = (ushort)((hi << 8) | lo);
                         modrm_seg_addr = seg_prefix_or_default();
                         return;

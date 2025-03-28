@@ -27,7 +27,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.ModRMOpcode
             );
 
-            // 1111011w mod 010 r/m
+            // 1111011w (F6 - F7) mod 010 r/m
             // Part of Group 1 instructions
 
             Debug.Assert(self.insExtOpcode == 0b010);
@@ -65,7 +65,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Register/memory and register to either
-                // 001000dw mod reg r/m
+                // 001000dw (20 - 23) mod reg r/m
 
                 if (self.insD)
                 {
@@ -95,7 +95,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate to register/memory
-                // 1000000w mod 100 r/m data, data if w=1
+                // 1000000w (80 - 81) mod 100 r/m data, data if w=1
 
                 Debug.Assert(self.insExtOpcode == 0b100);
 
@@ -115,7 +115,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate to accumulator
-                // 0010010w data, data if w=1
+                // 0010010w (24 - 25) data, data if w=1
 
                 dest = self.ax;
                 src = (ushort)self.ins_data;
@@ -152,7 +152,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Register/memory and register to either
-                // 000010dw mod reg r/m
+                // 000010dw (08 - 0B) mod reg r/m
 
                 if (self.insD)
                 {
@@ -182,7 +182,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immedate to register/memory
-                // 1000000w mod 001 r/m data, data if w=1
+                // 1000000w (80 - 81) mod 001 r/m data, data if w=1
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b001);
@@ -203,7 +203,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate to accumulator
-                // 0000110w data data if w = 1
+                // 0000110w (0C - 0D) data data if w = 1
 
                 dest = self.ax;
                 src = (ushort)self.ins_data;
@@ -240,7 +240,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Register/memory and register to either
-                // 001100dw mod reg r/m
+                // 001100dw (30 - 33) mod reg r/m
 
                 if (self.insD)
                 {
@@ -270,7 +270,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate to register/memory
-                // 1000000w mod 110 r/m data, data if w=1
+                // 1000000w (80 - 81) mod 110 r/m data, data if w=1
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b110);
@@ -291,7 +291,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate to accumulator
-                // 0011010w data, data if w=1
+                // 0011010w (34 - 35) data, data if w=1
 
                 dest = self.ax;
                 src = (ushort)self.ins_data;
@@ -328,7 +328,7 @@ namespace Emulate8086.Processor
                 );
 
                 // R/m and register
-                // 1000010w mod reg r/m
+                // 1000010w (84 - 85) mod reg r/m
 
                 value1 = self.GetModRMData();
                 value2 = self.GetReg(self.insReg, self.insW);
@@ -345,7 +345,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate data and register/memory
-                // 1111011w mod 000 r/m data, data if w=1
+                // 1111011w (F6 - F7) mod 000 r/m data, data if w=1
                 // Part of Group 1 instructions
 
                 Debug.Assert(self.insExtOpcode == 0b000);
@@ -365,7 +365,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate data and accumulator
-                // 1010100w data, data if w=1
+                // 1010100w (A8 - A9) data, data if w=1
 
                 value1 = self.ax;
                 value2 = (ushort)self.ins_data;
@@ -400,7 +400,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.ModRMOpcode
             );
 
-            // 110100vw mod 100 r/m
+            // 110100vw (D0 - D3) mod 100 r/m
             // Part of Shift group
 
             Debug.Assert(self.insExtOpcode == 0b100);
@@ -463,7 +463,7 @@ namespace Emulate8086.Processor
             );
 
             // Shift logical right
-            // 110100vw mod 101 r/m
+            // 110100vw (D0 - D3) mod 101 r/m
             // Part of Shift group
 
             Debug.Assert(self.insExtOpcode == 0b101);
@@ -526,7 +526,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.ModRMOpcode
             );
 
-            // 110100vw mod 111 r/m
+            // 110100vw (D0 - D3) mod 111 r/m
             // Part of Shift group
 
             Debug.Assert(self.insExtOpcode == 0b111);
@@ -601,7 +601,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.ModRMOpcode
             );
 
-            // 110100vw mod 000 r/m
+            // 110100vw (D0 - D3) mod 000 r/m
             // Part of Shift group
 
             Debug.Assert(self.insExtOpcode == 0b000);
@@ -667,7 +667,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.ModRMOpcode
             );
 
-            // 110100vw mod 001 r/m
+            // 110100vw (D0 - D3) mod 001 r/m
             // Part of Shift group
 
             Debug.Assert(self.insExtOpcode == 0b001);
@@ -735,7 +735,7 @@ namespace Emulate8086.Processor
             );
 
             // Rotate through carry left
-            // 110100vw mod 010 r/m
+            // 110100vw (D0 - D3) mod 010 r/m
             // Part of Shift group
 
             Debug.Assert(self.insExtOpcode == 0b010);
@@ -814,7 +814,8 @@ namespace Emulate8086.Processor
             );
 
             // Rotate through carry right
-            // 110100vw mod 011 r/m
+            // 110100vw (D0 - D3) mod 011 r/m
+            // Part of Shift group
 
             Debug.Assert(self.insExtOpcode == 0b011);
 

@@ -41,7 +41,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.ModRMOpcode
                 );
 
-                // 11111111 mod 110 rm
+                // 11111111 (FF) mod 110 rm
                 // Register/memory
                 // Part of Group 2 instructions
 
@@ -57,7 +57,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Reg
                 );
 
-                // 01010 reg
+                // 01010 reg (50 - 53)
                 // Register
 
                 // Execute
@@ -70,7 +70,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Seg
                 );
 
-                // 000 seg 110
+                // 000 seg 110 (06, 0E, 16, 1E)
                 // Segment register
                 self.push((short)self.GetSeg(self.insReg));
             }
@@ -93,7 +93,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.ModRMOpcode
                 );
 
-                // 10001111 mod 000 rm
+                // 10001111 (8F) mod 000 rm
                 // Register/memory
 
                 Debug.Assert(self.insExtOpcode == 0b000);
@@ -106,7 +106,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Reg
                 );
 
-                // 01011 reg
+                // 01011 reg (58 - 5F)
                 // Register
 
                 self.SetReg(self.insReg, (ushort)self.pop());
@@ -117,7 +117,7 @@ namespace Emulate8086.Processor
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Seg
                 );
-                // 000 seg 111
+                // 000 seg 111 (07, 0F, 17, 1F)
                 // Segment register
                 self.SetSeg(self.insReg, (ushort)self.pop());
             }
@@ -141,7 +141,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.ModRMReg
                 );
 
-                // 1000011w mod reg rm
+                // 1000011w (86 - 87) mod reg rm
                 // Register/memory with register
                 var reg = self.GetReg(self.insReg, self.insW);
                 var src = self.GetModRMData();
@@ -154,7 +154,7 @@ namespace Emulate8086.Processor
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
                 );
-                // 10010 reg 
+                // 10010 reg (90 - 97)
                 // Register with accumulator
                 var accum = self.ax;
                 var reg = self.GetReg16(self.insReg);
@@ -176,7 +176,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1101_0111 == self.insByte);
 
             // translate byte to al
-            // 11010111
+            // 11010111 (D7)
             // Replace AL with byte from 256-byte table pointed to by bx.
             // TODO: Take segment prefix into account?
             self.al = self.memory[self.bx + self.al];
@@ -202,7 +202,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Byte
                 );
 
-                // 1110 010w | port
+                // 1110 010w (E4 - E5) | port
                 // Fixed port (0-255)
                 port = self.ins_data;
             }
@@ -212,7 +212,7 @@ namespace Emulate8086.Processor
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W
                 );
-                // 1110 110w
+                // 1110 110w (EC - ED)
                 // Variable port (DX)
                 port = self.dx;
             }
@@ -247,7 +247,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.W |
                     InstructionDecoderFlags.Byte // TODO: Make sure this works
                 );
-                // 1110011w port
+                // 1110011w (E6 - E7) port
                 // Fixed port (0-255)
                 port = self.ins_data;
             }
@@ -257,7 +257,7 @@ namespace Emulate8086.Processor
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W
                 );
-                // 1110110w
+                // 1110111w (EE - EF) (misprinted in IBM reference as 1110110w which is IN)
                 // Variable port (DX)
                 port = self.dx;
             }
@@ -290,8 +290,10 @@ namespace Emulate8086.Processor
             );
 
             // Load effective address to register
-            // 10001101 mod reg r/m
-            self.SetReg(self.insReg, (ushort)self.modrm_addr); // or eff_addr?
+            // 10001101 (8D) mod reg r/m
+            // https://www.os2museum.com/wp/undocumented-8086-opcodes/comment-page-1/#comment-87135
+            // For LEA (and CALL FAR DX), ea is still the last computed address. DX in LEA AX,DX is not read.
+            self.SetReg(self.insReg, (ushort)self.modrm_eff_addr); // segment prefix is ignored; eff_addr is offset only, unlike modrm_addr
         }
 
         private static void HandleLDS(CPU self)
@@ -311,7 +313,7 @@ namespace Emulate8086.Processor
             );
 
             // Load pointer to DS
-            // 11000101 mod reg r/m
+            // 11000101 (C5) mod reg r/m
 
             // Read offset (first word) and segment (second word)
             var offset = self.memory.wordAt(self.modrm_addr);
@@ -342,7 +344,7 @@ namespace Emulate8086.Processor
             );
 
             // Load pointer to ES
-            // 11000100 mod reg r/m
+            // 11000100 (C4) mod reg r/m
 
             // Read offset (first word) and segment (second word)
             var offset = self.memory.wordAt(self.modrm_addr);
@@ -370,7 +372,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1001_1111 == self.insByte);
 
             // Load AH with flags
-            // 10011111
+            // 10011111 (9F)
 
             // Get lower byte of flags register and store in AH
             self.SetReg8(Register.AH, (byte)self.flags);
@@ -392,7 +394,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1001_1110 == self.insByte);
 
             // Store AH into flags
-            // 10011110
+            // 10011110 (9E)
 
             // Get value from AH and place in lower byte of flags
             byte ah = self.GetReg8(Register.AH);
@@ -411,7 +413,7 @@ namespace Emulate8086.Processor
 
             Debug.Assert(0b1001_1100 == self.insByte);
 
-            // 1001 1100
+            // 1001 1100 (9C)
             // Push flags
 
             // Push flags register onto stack
@@ -433,7 +435,7 @@ namespace Emulate8086.Processor
 
             Debug.Assert(0b1001_1101 == self.insByte);
 
-            // 1001 1101
+            // 1001 1101 (9D)
             // Pop flags
 
             // Pop value from stack and set as flags register

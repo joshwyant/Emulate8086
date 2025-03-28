@@ -105,7 +105,7 @@ namespace Emulate8086.Processor
             int a, b, result = self.CF ? 1 : 0;
             if ((self.insByte & 0b1111_1100) == 0b0001_0000)
             {
-                // 0001 00dw | mod reg r/m
+                // 0001 00dw (10 - 13) | mod reg r/m
                 //   Register/memory with register to either
                 self.DecodeInstruction(
                     InstructionDecoderFlags.ModRM |
@@ -128,7 +128,7 @@ namespace Emulate8086.Processor
             }
             else if ((self.insByte & 0b1111_1100) == 0b1000_0000)
             {
-                // 1000 00sw | mod 010 r/m | data | data if s:w=01
+                // 1000 00sw (80 - 83) | mod 010 r/m | data | data if s:w=01
                 //   Immediate to register/memory
                 //   Part of Immediate group
                 self.DecodeInstruction(
@@ -151,7 +151,7 @@ namespace Emulate8086.Processor
             {
                 Debug.Assert((self.insByte & 0b1111_1110) == 0b0001_0100);
 
-                // 0001 010w | data | data if w=1
+                // 0001 010w (14 - 15) | data | data if w=1
                 //   Immediate to accumulator
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
@@ -182,7 +182,7 @@ namespace Emulate8086.Processor
 
             int result = 0;
 
-            // 1111111w mod 000 rm
+            // 1111111w (FE - FF) mod 000 rm
             // Register/memory
             // Part of Group 2 instructions
             if ((self.insByte & 0b1111_1110) == 0b1111_1110)
@@ -196,7 +196,7 @@ namespace Emulate8086.Processor
                 result = self.GetModRMData() + 1;
                 self.SetModRMData((ushort)result);
             }
-            // 01000 reg
+            // 01000 (40 - 43) reg
             // Reg
             else
             {
@@ -231,7 +231,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0011_0111 == self.insByte);
 
             // ASCII adjust for add
-            // 00110111
+            // 00110111 (37)
             // 4 clocks
 
             // Logic: https://en.wikipedia.org/wiki/Intel_BCD_opcode
@@ -265,7 +265,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b0010_0111 == self.insByte);
 
             // Decimal adjust for add
-            // 00100111
+            // 00100111 (27)
 
             var lower = self.al & 0xF;
             if (lower >= 10 || self.AF)
@@ -306,7 +306,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.ModRMReg
                 );
                 // r/m and r to either
-                // 001010dw mod reg r/m
+                // 001010dw (28-2B) mod reg r/m
 
                 if (self.insD)
                 {
@@ -336,7 +336,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Word
                 );
                 // imm to reg/mem
-                // 100000sw mod 101 r/m data, data if s:w=01
+                // 100000sw (80 - 83) mod 101 r/m data, data if s:w=01
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b101);
@@ -357,7 +357,7 @@ namespace Emulate8086.Processor
                 );
 
                 // imm from accum
-                // 0010110w data, data if w=1
+                // 0010110w (2C - 2D) data, data if w=1
 
                 a = self.ax;
                 b = self.ins_data;
@@ -396,7 +396,7 @@ namespace Emulate8086.Processor
                 );
 
                 // r/m and r to either
-                // 000110dw mod reg r/m
+                // 000110dw (18 - 1B) mod reg r/m
 
                 if (self.insD)
                 {
@@ -427,7 +427,7 @@ namespace Emulate8086.Processor
                 );
 
                 // imm to reg/mem
-                // 100000sw mod 011 r/m data, data if s:w=01
+                // 100000sw (80 - 83) mod 011 r/m data, data if s:w=01
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b011);
@@ -448,7 +448,7 @@ namespace Emulate8086.Processor
                 );
 
                 // imm from accum
-                // 0001110w data, data if w=1
+                // 0001110w (1C - 1D) data, data if w=1
 
                 a = self.ax;
                 b = self.ins_data;
@@ -484,7 +484,7 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.ModRMOpcode
                 );
 
-                // 1111111w mod 001 r/m
+                // 1111111w (FE - FF) mod 001 r/m
                 // Part of Group 2 instructions
 
                 Debug.Assert(self.insExtOpcode == 0b001);
@@ -500,7 +500,7 @@ namespace Emulate8086.Processor
                 self.DecodeInstruction(
                     InstructionDecoderFlags.Reg
                 );
-                // 01001 reg
+                // 01001 reg (48 - 4F)
 
                 self.insW = true; // Set for 16-bit register
                 a = self.GetReg16(self.insReg);
@@ -534,7 +534,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.ModRMOpcode
             );
 
-            // 1111011w mod 011 r/m
+            // 1111011w (F6-F7) mod 011 r/m
             // Part of Group 1 instructions
 
             Debug.Assert(self.insExtOpcode == 0b011);
@@ -575,7 +575,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Register/memory and register
-                // 001110dw mod reg r/m
+                // 001110dw (38 - 3B) mod reg r/m
 
                 if (self.insD)
                 {
@@ -603,7 +603,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate with register/memory
-                // 100000sw mod 111 r/m data, data if s:w =01
+                // 100000sw (80 - 83) mod 111 r/m data, data if s:w =01
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b111);
@@ -623,7 +623,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate with accumulator
-                // 0011110w data, data if w=1
+                // 0011110w (3C - 3D) data, data if w=1
 
                 a = self.ax;
                 b = self.ins_data;
@@ -649,7 +649,7 @@ namespace Emulate8086.Processor
 
             Debug.Assert(self.insByte == 0b0011_1111);
 
-            // 00111111 -- ASCII adjust for subtract
+            // 00111111 (3F) -- ASCII adjust for subtract
             // 4 clocks
 
             // If lower nibble is > 9 or AF is set
@@ -684,7 +684,7 @@ namespace Emulate8086.Processor
             Debug.Assert(self.insByte == 0b0010_1111);
 
             // Decimal adjust for subtract
-            // 00101111
+            // 00101111 (2F)
 
             var oldAL = self.al;
             var oldCF = self.CF;
@@ -736,7 +736,7 @@ namespace Emulate8086.Processor
             );
 
             // Multiply unsigned
-            // 1111011w mod 100 r/m
+            // 1111011w (F6 - F7) mod 100 r/m
             // Part of Group 1 instructions
 
             Debug.Assert(self.insExtOpcode == 0b100);
@@ -784,7 +784,7 @@ namespace Emulate8086.Processor
             );
 
             // Integer multiply (signed)
-            // 1111011w mod 101 r/m
+            // 1111011w (F6 - F7) mod 101 r/m
             // Part of Group 1 instructions
 
             Debug.Assert(self.insExtOpcode == 0b101);
@@ -836,7 +836,7 @@ namespace Emulate8086.Processor
                          0b0000_1010 == self.memory[self.csip++]);
 
             // ASCII adjust for multiply
-            // 11010100 00001010
+            // 11010100 00001010 (D4 0A)
             // Second byte is always the same and is just "there"
             // (It equals 10 in decimal)
             // 83 clocks
@@ -877,7 +877,7 @@ namespace Emulate8086.Processor
             );
 
             // Divide (unsigned)
-            // 1111011w mod 110 r/m
+            // 1111011w (F6 - F7) mod 110 r/m
             // Part of Group 1 instructions
             Debug.Assert(self.insExtOpcode == 0b110);
 
@@ -955,7 +955,7 @@ namespace Emulate8086.Processor
             );
 
             // Integer divide (signed)
-            // 1111011w mod 111 r/m
+            // 1111011w (F6 - F7) mod 111 r/m
             // Part of Group 1 instructions
             Debug.Assert(self.insExtOpcode == 0b111);
 
@@ -1032,7 +1032,7 @@ namespace Emulate8086.Processor
                          0b0000_1010 == self.memory[self.csip++]);
 
             // ASCII adjust for divide
-            // 11010101 00001010
+            // 11010101 00001010 (D5 0A)
 
             byte base10 = 10; // This is usually the second byte of the instruction
 
@@ -1059,7 +1059,7 @@ namespace Emulate8086.Processor
             Debug.Assert(self.insByte == 0b1001_1000);
 
             // Convert byte to word
-            // 10011000
+            // 10011000 (98)
 
             // Sign-extend AL into AH (AL to AX)
             self.ah = (self.al & 0x80) != 0 ? (byte)0xFF : (byte)0;
@@ -1078,7 +1078,7 @@ namespace Emulate8086.Processor
             Debug.Assert(self.insByte == 0b1001_1001);
 
             // Convert word to double word
-            // 10011001
+            // 10011001 (99)
 
             // Sign-extend AX into DX (AX to DX:AX)
             self.dx = (self.ax & 0x8000) != 0 ? (ushort)0xFFFF : (ushort)0;

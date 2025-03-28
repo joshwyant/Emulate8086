@@ -200,14 +200,14 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-47
             // - Table 2-21. Instruction Set Reference Data, p. 2-53
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             // ODITSZAPC
             //         0
 
             Debug.Assert(0b1111_1000 == self.insByte);
 
             // Clear carry
-            // 11111000
+            // 11111000 (F8)
             self.CF = false;
         }
 
@@ -220,14 +220,14 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-47
             // - Table 2-21. Instruction Set Reference Data, p. 2-53
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             // ODITSZAPC
             //         X
 
             Debug.Assert(0b1111_0101 == self.insByte);
 
             // Complement carry
-            // 11110101
+            // 11110101 (F5)
             self.CF = !self.CF;
         }
 
@@ -240,14 +240,14 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-47
             // - Table 2-21. Instruction Set Reference Data, p. 2-66
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             // ODITSZAPC
             //         1
 
             Debug.Assert(0b1111_1001 == self.insByte);
-            
+
             // Set carry
-            // 11111001
+            // 11111001 (F9)
             self.CF = true;
         }
 
@@ -260,14 +260,14 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-47
             // - Table 2-21. Instruction Set Reference Data, p. 2-53
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             // ODITSZAPC
             //  0       
 
             Debug.Assert(0b1111_1100 == self.insByte);
 
             // Clear direction
-            // 11111100
+            // 11111100 (FC)
             self.DF = false;
         }
 
@@ -280,14 +280,14 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-47
             // - Table 2-21. Instruction Set Reference Data, p. 2-66
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             // ODITSZAPC
             //  1       
 
             Debug.Assert(0b1111_1101 == self.insByte);
-            
+
             // Set direction
-            // 11111101
+            // 11111101 (FD)
             self.DF = true;
         }
 
@@ -300,14 +300,14 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-48
             // - Table 2-21. Instruction Set Reference Data, p. 2-53
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             // ODITSZAPC
             //  0      
 
             Debug.Assert(0b1111_1010 == self.insByte);
 
             // Clear interrupt
-            // 11111010
+            // 11111010 (FA)
             self.IF = false;
         }
 
@@ -320,14 +320,14 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-48
             // - Table 2-21. Instruction Set Reference Data, p. 2-66
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             // ODITSZAPC
             //   1      
 
             Debug.Assert(0b1111_1011 == self.insByte);
-            
+
             // Set interrupt
-            // 11111011
+            // 11111011 (FB)
             self.IF = true;
         }
         #endregion
@@ -344,9 +344,9 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
             Debug.Assert(0b1111_0100 == self.insByte);
-            
+
             // halt
-            // 11110100
+            // 11110100 (F4)
             // TODO
             //self.halted = true;
             throw new NotImplementedException();
@@ -363,8 +363,8 @@ namespace Emulate8086.Processor
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
 
             Debug.Assert(0b10011011 == self.insByte);
-            
-            // 10011011
+
+            // 10011011 (FB)
             //throw new NotImplementedException();
         }
 
@@ -377,7 +377,7 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-48
             // - Table 2-21. Instruction Set Reference Data, p. 2-54
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             Debug.Assert(0b1101_1_000 == (self.insByte & 0b11111_000));
 
             self.DecodeInstruction(
@@ -385,7 +385,7 @@ namespace Emulate8086.Processor
             );
 
             // Escape (to external device)
-            // 11011xxx mod xxx r/m
+            // 11011xxx (D8 - DF) mod xxx r/m
             //throw new NotImplementedException();
         }
 
@@ -398,11 +398,11 @@ namespace Emulate8086.Processor
             // - 2.7 Instruction Set, p. 2-48
             // - Table 2-21. Instruction Set Reference Data, p. 2-60
             // - Table 4-12. 8086 Instruction Encoding, p. 4-27
-            
+
             Debug.Assert(0b1111_0000 == self.insByte);
 
             // Bus lock prefix
-            // 11110000
+            // 11110000 (F0)
             //throw new NotImplementedException();
         }
         #endregion
@@ -416,9 +416,9 @@ namespace Emulate8086.Processor
             // Intel 8086 Family User's Manual October 1979
             // - 2.7 Instruction Set, p. 2-48
             // - Table 2-21. Instruction Set Reference Data, p. 2-62
-            
+
             // No operation (xchg eax,eax)
-            // 10010000
+            // 10010000 (90)
             //throw new NotImplementedException();
         }
         #endregion

@@ -19,6 +19,8 @@ namespace Emulate8086.Processor
             // - Table 2-21. Instruction Set Reference Data, p. 2-52
             // - Table 4-12. 8086 Instruction Encoding, p. 4-26
 
+            // https://faydoc.tripod.com/cpu/call.htm
+
             ushort newOffset = 0;
             ushort newSegment = 0;
             bool intersegment = false;
@@ -31,8 +33,8 @@ namespace Emulate8086.Processor
                         InstructionDecoderFlags.DispW
                     );
                     // Direct within segment
-                    // 11101000 disp-low disp-high
-                    newOffset = (ushort)(self.ip + self.disp);
+                    // 11101000 (E8) disp-low disp-high
+                    newOffset = (ushort)(self.ip + self.disp);  // TODO: use start IP?
                     break;
                 case 0b1111_1111:
                     if (self.insExtOpcode == 0b010)
@@ -42,9 +44,8 @@ namespace Emulate8086.Processor
                             InstructionDecoderFlags.ModRMOpcode
                         );
                         // Indirect within segment
-                        // 11111111 mod 010 r/m
+                        // 11111111 (FF) mod 010 r/m
                         // Part of Group 2 instructions
-                        Debug.Assert(self.insExtOpcode == 0b010);
 
                         // Get address from r/m
                         newOffset = self.GetModRMData();
@@ -56,12 +57,14 @@ namespace Emulate8086.Processor
                             InstructionDecoderFlags.ModRMOpcode
                         );
                         // Indirect intersegment
-                        // 11111111 mod 011 r/m
+                        // 11111111 (FF) mod 011 r/m
                         // Part of Group 2 instructions
                         Debug.Assert(self.insExtOpcode == 0b011);
 
                         // Get far pointer from memory
-                        ushort ea = (ushort)self.modrm_addr; // TODO: or eff_addr?
+                        // https://www.os2museum.com/wp/undocumented-8086-opcodes/comment-page-1/#comment-87135
+                        // For LEA (and CALL FAR AX), ea is still the last computed address. AX in CALL FAR AX is not read.
+                        ushort ea = (ushort)self.modrm_addr;
                         newOffset = self.memory.wordAt(self.ds, ea);
                         newSegment = self.memory.wordAt(self.ds, (ushort)(ea + 2));
                         intersegment = true;
@@ -72,12 +75,14 @@ namespace Emulate8086.Processor
                         InstructionDecoderFlags.AddL
                     );
                     // Direct intersegment
-                    // 10011010 offs-low offs-hi seg-lo seg-hi
+                    // 10011010 (9A) offs-low offs-hi seg-lo seg-hi
                     newOffset = self.ins_addr;
                     newSegment = self.ins_seg;
                     intersegment = true;
                     break;
                 default:
+                    // Maybe a CALL FAR AL or something?
+                    // Like https://github.com/dbalsom/martypc/issues/128
                     Debug.Assert(false);
                     break;
             }
@@ -122,24 +127,24 @@ namespace Emulate8086.Processor
                 case 0b1100_0011:
                     // Return from CALL
                     // Within segment
-                    // 11000011
+                    // 11000011 (C3)
                     break;
                 case 0b1100_0010:
                     self.DecodeInstruction(
                         InstructionDecoderFlags.Word
                     );
                     // Within segment adding immediate to SP
-                    // 11000010 data-lo data-hi
+                    // 11000010 (C2) data-lo data-hi
                     imm = (ushort)self.ins_data;
                     break;
                 case 0b1100_1011:
                     // Intersegment
-                    // 11001011
+                    // 11001011 (CB)
                     intersegment = true;
                     break;
                 case 0b1100_1010:
                     // Intersegment, adding immediate to SP
-                    // 11001010 data-lo data-hi
+                    // 11001010 (CA) data-lo data-hi
                     self.DecodeInstruction(
                         InstructionDecoderFlags.Word
                     );
@@ -196,7 +201,7 @@ namespace Emulate8086.Processor
             {
                 case 0b1110_1001:
                     // Direct within segment
-                    // 11101001 disp-low disp-high
+                    // 11101001 (E9) disp-low disp-high
                     self.DecodeInstruction(
                         InstructionDecoderFlags.DispW
                     );
@@ -204,7 +209,7 @@ namespace Emulate8086.Processor
                     break;
                 case 0b1110_1011:
                     // Direct within segment short
-                    // 11101011 disp
+                    // 11101011 (EB) disp
                     self.DecodeInstruction(
                         InstructionDecoderFlags.Byte
                     );
@@ -220,9 +225,8 @@ namespace Emulate8086.Processor
                     if (self.insExtOpcode == 0b100)
                     {
                         // Indirect within segment
-                        // 11111111 mod 100 r/m
+                        // 11111111 (FF) mod 100 r/m
                         // Part of Group 2 instructions
-                        Debug.Assert(self.insExtOpcode == 0b100);
 
                         // Get address from r/m
                         newOffset = self.GetModRMData();
@@ -230,12 +234,12 @@ namespace Emulate8086.Processor
                     else
                     {
                         // Indirect intersegment
-                        // 11111111 mod 101 r/m
+                        // 11111111 (FF) mod 101 r/m
                         // Part of Group 2 instructions
                         Debug.Assert(self.insExtOpcode == 0b101);
 
                         // Get far pointer from memory
-                        ushort ea = (ushort)self.modrm_addr; // TODO: or eff_addr?
+                        ushort ea = (ushort)self.modrm_addr;
                         newOffset = self.memory.wordAt(self.ds, ea);
                         newSegment = self.memory.wordAt(self.ds, (ushort)(ea + 2));
                         intersegment = true;
@@ -243,7 +247,7 @@ namespace Emulate8086.Processor
                     break;
                 case 0b1110_1010:
                     // Direct intersegment
-                    // 11101010 off-lo off-hi seg-lo seg-hi
+                    // 11101010 (EA) off-lo off-hi seg-lo seg-hi
                     self.DecodeInstruction(
                         InstructionDecoderFlags.AddL
                     );
@@ -252,6 +256,7 @@ namespace Emulate8086.Processor
                     intersegment = true;
                     break;
                 default:
+                    // Maybe a JMP FAR AL or something?
                     Debug.Assert(false);
                     break;
             }
@@ -302,7 +307,7 @@ namespace Emulate8086.Processor
                 InstructionDecoderFlags.DispB
             );
 
-            // 01110010 disp
+            // 01110010 (72) disp
             self.jmp_disp_on(self.CF);
         }
 
@@ -324,7 +329,7 @@ namespace Emulate8086.Processor
             );
 
             // jbe/jna jump on below or equal/not above
-            // 01110110 disp
+            // 01110110 (76) disp
             self.jmp_disp_on(self.CF || self.ZF);
         }
 
@@ -354,7 +359,7 @@ namespace Emulate8086.Processor
             );
 
             // JE/JZ jump on equal/zero
-            // 01110100 disp
+            // 01110100 (74) disp
             self.jmp_disp_on(self.ZF);
         }
 
@@ -387,7 +392,7 @@ namespace Emulate8086.Processor
 
             // Logic: https://wikidev.in/wiki/assembly/8086/JL
             // JL/JNGE jump on less/not greater or equal
-            // 01111100 disp
+            // 01111100 (7C) disp
             self.jmp_disp_on(self.SF != self.OF);
         }
 
@@ -409,7 +414,7 @@ namespace Emulate8086.Processor
             );
 
             // JLE/JNG jump on less or equal/not greater
-            // 01111110 disp
+            // 01111110 (7E) disp
             self.jmp_disp_on(self.SF != self.OF || self.ZF);
         }
 
@@ -442,7 +447,7 @@ namespace Emulate8086.Processor
 
             // Logic: https://wikidev.in/wiki/assembly/8086/jnb
             // jnb/jae Jump on not below/above or equal
-            // 01110011 disp
+            // 01110011 (73) disp
             self.jmp_disp_on(!self.CF);
         }
 
@@ -464,7 +469,7 @@ namespace Emulate8086.Processor
             );
 
             // jnbe/ja jump on not below or equal/above
-            // 01110111 disp
+            // 01110111 (77) disp
             self.jmp_disp_on(!(self.CF || self.ZF));
         }
 
@@ -494,7 +499,7 @@ namespace Emulate8086.Processor
             );
 
             // jne/jnz jump on not equal/not zero
-            // 01110101 disp
+            // 01110101 (75) disp
             self.jmp_disp_on(!self.ZF);
         }
 
@@ -527,7 +532,7 @@ namespace Emulate8086.Processor
 
             // Logic: https://wikidev.in/wiki/assembly/8086/jnl
             // jnl/jnge jump on not less/greater or equal
-            // 01111101 disp
+            // 01111101 (7D) disp
             self.jmp_disp_on(self.SF == self.OF);
         }
 
@@ -549,7 +554,7 @@ namespace Emulate8086.Processor
             );
 
             // JNLE/JG jump on not less or equal/greater
-            // 01111111 disp
+            // 01111111 (7F) disp
             self.jmp_disp_on((self.SF == self.OF) || self.ZF);
         }
 
@@ -571,7 +576,7 @@ namespace Emulate8086.Processor
             );
 
             // jump on not overflow
-            // 01110001 disp
+            // 01110001 (71) disp
             self.jmp_disp_on(!self.OF);
         }
 
@@ -593,7 +598,7 @@ namespace Emulate8086.Processor
             );
 
             // jnp/jpo jump on not parity/parity odd
-            // 01111011 disp
+            // 01111011 (7B) disp
             self.jmp_disp_on(!self.PF);
         }
 
@@ -615,7 +620,7 @@ namespace Emulate8086.Processor
             );
 
             // jump on not sign
-            // 01111001 disp
+            // 01111001 (79) disp
             self.jmp_disp_on(!self.SF);
         }
 
@@ -642,7 +647,7 @@ namespace Emulate8086.Processor
             );
 
             // jump on overflow
-            // 01110000 disp
+            // 01110000 (70) disp
             self.jmp_disp_on(self.OF);
         }
 
@@ -664,7 +669,7 @@ namespace Emulate8086.Processor
             );
 
             // jp/jpe jump on parity/parity even
-            // 01111010 disp
+            // 01111010 (7A) disp
             self.jmp_disp_on(self.PF);
         }
 
@@ -696,7 +701,7 @@ namespace Emulate8086.Processor
             );
 
             // Jump on sign
-            // 01111000 disp
+            // 01111000 (78) disp
             self.jmp_disp_on(self.SF);
         }
 
@@ -724,7 +729,7 @@ namespace Emulate8086.Processor
             );
 
             // loop cx times
-            // 11100010 disp
+            // 11100010 (E2) disp
 
             // Decrement CX
             self.cx--;
@@ -755,7 +760,7 @@ namespace Emulate8086.Processor
             );
 
             // loopz/loope loop while zero/equal
-            // 11100001 disp
+            // 11100001 (E1) disp
 
             // Decrement CX
             self.cx--;
@@ -791,7 +796,7 @@ namespace Emulate8086.Processor
             );
 
             // loopnz/loopne loop while not zero/not equal
-            // 11100000 disp
+            // 11100000 (E0) disp
 
             // Decrement CX
             self.cx--;
@@ -829,7 +834,7 @@ namespace Emulate8086.Processor
             );
 
             // jump on cx zero
-            // 11100011 disp
+            // 11100011 (E3) disp
             self.jmp_disp_on(self.cx == 0);
         }
         #endregion
@@ -858,12 +863,12 @@ namespace Emulate8086.Processor
                     );
                     // interrupt
                     // type specified
-                    // 11001101 type
+                    // 11001101 (CD) type
                     intType = (byte)self.disp;
                     break;
                 case 0b1100_1100:
                     // type 3
-                    // 11001100
+                    // 11001100 (CC)
                     intType = 3;
                     break;
                 default:
@@ -920,7 +925,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1100_1110 == self.insByte);
 
             // interrupt on overflow
-            // 11001110
+            // 11001110 (CE)
 
             // If overflow flag is set, execute INT 4
             if (self.OF)
@@ -958,7 +963,7 @@ namespace Emulate8086.Processor
             Debug.Assert(0b1100_1111 == self.insByte);
 
             // interrupt return
-            // 11001111
+            // 11001111 (CF)
 
             // Pop IP, CS, and FLAGS from stack
             self.ip = (ushort)self.pop();
