@@ -13,6 +13,8 @@ namespace Emulate8086.Processor
 
         byte[] contents;
 
+        public byte[] RawBytes => contents;
+
         public byte this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

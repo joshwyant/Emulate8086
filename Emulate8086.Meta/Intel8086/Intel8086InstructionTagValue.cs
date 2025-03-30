@@ -93,4 +93,12 @@ public enum Intel8086InstructionTagValue
     STI,
     WAIT,
     ESC,
+    ES,
+    CS,
+    SS,
+    DS,
+    Shift,
+    Immediate,
+    Group1,
+    Group2,
 }

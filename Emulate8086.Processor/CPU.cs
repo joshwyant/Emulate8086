@@ -130,12 +130,12 @@ namespace Emulate8086.Processor
             {
                 modrm_is_reg = true;
                 modrm_register = rm;
-                modrm_seg_addr = rm switch
-                {
-                    Register.SP => seg_prefix_or_default(Register.SS),
-                    Register.BP => seg_prefix_or_default(Register.SS),
-                    _ => seg_prefix_or_default()
-                };
+                // modrm_seg_addr = rm switch
+                // {
+                //     Register.SP => seg_prefix_or_default(Register.SS),
+                //     Register.BP => seg_prefix_or_default(Register.SS),
+                //     _ => seg_prefix_or_default()
+                // };
                 return;
             }
             if (mod == Register.Disp8)
@@ -157,7 +157,7 @@ namespace Emulate8086.Processor
                     else // mod/rm = 00/110 (Disp0/BP)
                     {
                         // This is a special case:
-                        // Return effective address directly as mem. addr.
+                        // Return effective address directly as mem. addr. (displacement from 0)
                         modrm_eff_addr = (ushort)((hi << 8) | lo);
                         modrm_seg_addr = seg_prefix_or_default();
                         return;

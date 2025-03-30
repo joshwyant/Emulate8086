@@ -1,17 +1,19 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Diagnostics;
 using System.Runtime.InteropServices.Swift;
+using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
 
 bool prompting = false;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
 HashSet<int> break_addrs = [
-    0x7C00,
+    //0x7C00,
     //0x0500,
     //0x0700,
     //0x70 * 16 + 0x232,
     //0x9F84 * 16 + 0x34B //0x442,//0x420 //34B // 38F // 442
+    //0x9f44 * 16 + 0x559 //0x333 // 0x0238
 ];
 
 var disk = "/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
@@ -105,18 +107,49 @@ cpu.HookInterrupt(0x13, cpu =>
 // http://vitaly_filatov.tripod.com/ng/asm/asm_001.10.html
 cpu.HookInterrupt(0x12, cpu =>
 {
-    cpu.SetReg16(Register.AX, (ushort)(cpu.Memory.Size >> 10));
+    // Get usable [conventional] memory size
+    var size = Math.Min(640, cpu.Memory.Size - 1);
+    cpu.SetReg16(Register.AX, (ushort)(size - 1)); // Bochs says 639
 });
-var bootsect = new byte[512];
-file.Seek(0, SeekOrigin.Begin);
-file.Read(bootsect, 0, 512);
-// Load the boot sector into memory.
-for (var i = 0; i < 512; i++)
+cpu.HookInterrupt(0x16, cpu =>
 {
-    mem[0x7C00 + i] = bootsect[i];
+    // Read key press
+    Console.Read();
+});
+cpu.HookInterrupt(0x10, cpu =>
+{
+    switch (cpu.AH)
+    {
+        case 0x0E:
+            // Teletype output
+            var character = cpu.AL;
+            var page = cpu.BH;
+            var color = cpu.BL;
+            Console.Write((char)character);
+            break;
+    }
+});
+
+void boot()
+{
+    var bootsect = new byte[512];
+    file.Seek(0, SeekOrigin.Begin);
+    file.Read(bootsect, 0, 512);
+    // Load the boot sector into memory.
+    for (var i = 0; i < 512; i++)
+    {
+        mem[0x7C00 + i] = bootsect[i];
+    }
+    // Set the drive number
+    cpu.SetReg8(Register.DL, (byte)drive);
 }
-// Set the drive number
-cpu.SetReg8(Register.DL, (byte)drive);
+
+cpu.HookInterrupt(0x19, cpu =>
+{
+    // Reboot
+    boot();
+});
+boot();
 
 // Set up the diskette parameter table
 // http://www.techhelpmanual.com/256-int_1eh__diskette_parameter_pointer.html
@@ -157,6 +190,22 @@ cpu.Memory[dptPtr + 10] = 8;
 
 
 cpu.Jump(0x0000, 0x7C00);
+
+string DecodeInstruction()
+{
+    var ins = cpu.NextInstruction;
+
+    try
+    {
+        var ip = cpu.CS * 16 + cpu.IP;
+        var decoder = new DecodedInstruction(cpu.Memory.RawBytes, ref ip);
+        return decoder.ToString();
+    }
+    catch
+    {
+        return ins.ToString().ToLower();
+    }
+}
 
 while (!stop)
 {
@@ -228,7 +277,7 @@ while (!stop)
     Console.Write((cpu.flags & Emulate8086.Flags.PF) != 0 ? "1" : " ");
     Console.Write((cpu.flags & Emulate8086.Flags.CF) != 0 ? "1" : " ");
     Console.WriteLine();
-    Console.WriteLine($": {cpu.NextInstruction}");
+    Console.WriteLine($": {DecodeInstruction()}");
 
     // Prompt
     var command = "";
@@ -297,7 +346,7 @@ while (!stop)
             cpu.Clock(in_breakpoint && break_with_debugger);
             in_breakpoint = false;
             // TODO: Disassembly
-            Console.WriteLine($"Executed {cpu.PreviousInstruction}");
+            Console.WriteLine($"Executed {DecodeInstruction()}");
             break;
     }
 }

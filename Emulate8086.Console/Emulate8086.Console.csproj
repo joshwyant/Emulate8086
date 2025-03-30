@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Emulate8086.Processor\Emulate8086.Processor.csproj" />
+    <ProjectReference Include="..\Emulate8086.Meta\Emulate8086.Meta.csproj" />
   </ItemGroup>
 
 </Project>
