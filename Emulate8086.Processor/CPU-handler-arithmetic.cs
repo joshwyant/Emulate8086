@@ -1111,7 +1111,7 @@ namespace Emulate8086.Processor
         {
             // Consider getting these lazily after caching the last result
             ZF = result == 0;
-            CF = (result & (insW ? 0x10000 : 0x100)) != 0;
+            CF = (uint)a < (uint)(b + borrow);
             AF = ((a & 0xF) - (b & 0xF) - borrow) < 0; // Borrow from the higher nibble
             SF = (result & (insW ? 0x8000 : 0x80)) != 0;
             PF = parity_byte((byte)(result & 0xFF));

@@ -76,7 +76,7 @@ namespace Emulate8086.Processor
                     );
                     // Direct intersegment
                     // 10011010 (9A) offs-low offs-hi seg-lo seg-hi
-                    newOffset = self.ins_addr;
+                    newOffset = self.ins_eff_addr;
                     newSegment = self.ins_seg;
                     intersegment = true;
                     break;
@@ -251,7 +251,7 @@ namespace Emulate8086.Processor
                     self.DecodeInstruction(
                         InstructionDecoderFlags.AddL
                     );
-                    newOffset = self.ins_addr;
+                    newOffset = self.ins_eff_addr;
                     newSegment = self.ins_seg;
                     intersegment = true;
                     break;

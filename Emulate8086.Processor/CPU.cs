@@ -196,6 +196,7 @@ namespace Emulate8086.Processor
         }
 
         int modrm_addr => modrm_seg_addr * 16 + modrm_eff_addr;
+        int ins_addr => ins_seg * 16 + ins_eff_addr;
 
         InstructionDecoderFlags instructionFlags;
         PrefixFlags prefix;
@@ -210,7 +211,7 @@ namespace Emulate8086.Processor
         bool insZ;
         int insExtOpcode;
         ushort ins_data;
-        ushort ins_addr;
+        ushort ins_eff_addr;
         ushort ins_seg;
         byte modrm;
         ushort modrm_eff_addr;
@@ -245,7 +246,7 @@ namespace Emulate8086.Processor
             insZ = false;
             insExtOpcode = 0;
             ins_data = 0;
-            ins_addr = 0;
+            ins_eff_addr = 0;
             ins_seg = 0;
             modrm = 0;
             disp = 0;
@@ -358,13 +359,17 @@ namespace Emulate8086.Processor
             // Get an address
             if ((instructionFlags & (InstructionDecoderFlags.Addr | InstructionDecoderFlags.AddL)) != 0)
             {
-                ins_addr = (ushort)(memory[csip++] | (memory[csip++] << 8));
-            }
+                ins_eff_addr = (ushort)(memory[csip++] | (memory[csip++] << 8));
 
-            // Get address segment
-            if ((instructionFlags & InstructionDecoderFlags.AddL) != 0)
-            {
-                ins_seg = (ushort)(memory[csip++] | (memory[csip++] << 8));
+                // Get address segment
+                if ((instructionFlags & InstructionDecoderFlags.AddL) != 0)
+                {
+                    ins_seg = (ushort)(memory[csip++] | (memory[csip++] << 8));
+                }
+                else
+                {
+                    ins_seg = seg_prefix_or_default();
+                }
             }
 
             // Calculate displacement

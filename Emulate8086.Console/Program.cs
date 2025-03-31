@@ -1,6 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Diagnostics;
-using System.Runtime.InteropServices.Swift;
+using Emulate8086;
 using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
 
@@ -13,7 +13,13 @@ HashSet<int> break_addrs = [
     //0x0700,
     //0x70 * 16 + 0x232,
     //0x9F84 * 16 + 0x34B //0x442,//0x420 //34B // 38F // 442
-    //0x9f44 * 16 + 0x559 //0x333 // 0x0238
+    //0x9f44 * 16 + 0x25e //0x238 //0x559 //0x333 // 0x0238
+    //0x9F82A // 9f44:03ea
+    //0x7d20,
+    //0x7d26,
+    //0x7d2d
+    //0x8bb
+    //0x9f6a1
 ];
 
 var disk = "/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
@@ -73,6 +79,22 @@ bool ReadSectors(byte drive, ushort cylinder, byte head, byte sector, byte count
     return true;
 }
 
+void ReturnFlag(Flags flag, bool set, CPU cpu)
+{
+    var flags_addr_on_stack = cpu.SS * 16 + cpu.SP + 4;
+    var original_flags = cpu.Memory.wordAt(flags_addr_on_stack);
+    var updated_flags = original_flags;
+    if (set)
+    {
+        updated_flags |= (ushort)flag;
+    }
+    else
+    {
+        updated_flags &= (ushort)~flag;
+    }
+    cpu.Memory.setWordAt(flags_addr_on_stack, updated_flags);
+}
+
 // Interrupts
 // https://en.wikipedia.org/wiki/INT_13H
 cpu.HookInterrupt(0x13, cpu =>
@@ -95,8 +117,7 @@ cpu.HookInterrupt(0x13, cpu =>
             );
             cpu.SetReg16(Register.AX, (ushort)((status << 8) | cpu.AL));
 
-            cpu.CF = !success;
-            cpu.Memory.setWordAt(cpu.SS * 16 + cpu.SP + 4, (ushort)cpu.flags);
+            ReturnFlag(Flags.Carry, !success, cpu);
             break;
         default:
             // throw new NotImplementedException();
