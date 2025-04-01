@@ -50,7 +50,7 @@ namespace Emulate8086.Processor
                     self.SetReg(self.insReg, (ushort)result, self.insW);
                 }
             }
-            else if ((self.insByte & 0x11111100) == 0b10000000)
+            else if ((self.insByte & 0b11111100) == 0b10000000)
             {
                 // 1000 00sw (80 - 83) | mod 000 r/m | data | data if s:w=01
                 // Part of Immediate group

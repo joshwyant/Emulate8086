@@ -12,4 +12,8 @@
     <ProjectReference Include="..\Emulate8086.Meta\Emulate8086.Meta.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ppy.SDL2-CS" Version="1.0.741-alpha" />
+  </ItemGroup>
+
 </Project>

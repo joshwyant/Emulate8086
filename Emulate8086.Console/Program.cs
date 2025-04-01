@@ -20,6 +20,9 @@ HashSet<int> break_addrs = [
     //0x7d2d
     //0x8bb
     //0x9f6a1
+    //0x70 * 16 + 0x1803,
+    //0x700,
+    0, // Execution wrapped around
 ];
 
 var disk = "/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
@@ -28,6 +31,37 @@ int sectorsPerTrack = 18, heads = 2, drive = 0x00;
 
 var mem = new Memory(1024 * 1024); // 1mb // 640KB
 var cpu = new CPU(mem);
+
+void MemoryWindow(ushort seg, ushort addr)
+{
+    for (var i = 0; i < 16; i++)
+    {
+        var current = seg * 16 + addr + i;
+        if (current < mem.Size)
+        {
+            Console.Write($"{mem[current]:X2} ");
+        }
+        else
+        {
+            Console.Write("   ");
+        }
+    }
+    for (var i = 0; i < 16; i++)
+    {
+        var current = seg * 16 + addr + i;
+        if (current < mem.Size)
+        {
+            var c = (char)mem[current];
+            var ch = c >= 32 && c < 127 ? c.ToString() : ".";
+            Console.Write($" {ch}");
+        }
+        else
+        {
+            Console.Write("  ");
+        }
+    }
+    Console.WriteLine();
+}
 
 bool stop = false;
 Console.CancelKeyPress += (o, args) =>
@@ -46,6 +80,8 @@ int CalculateLBA(ushort cylinder, byte head, int sector)
 
 bool ReadSectors(byte drive, ushort cylinder, byte head, byte sector, byte count, ushort segment, ushort offset, out byte status)
 {
+    var baseLBA = CalculateLBA(cylinder, head, sector);
+    // Console.WriteLine($"LBA: 0x{baseLBA}");
     status = 0x00; // success
 
     if (count < 1)
@@ -56,7 +92,7 @@ bool ReadSectors(byte drive, ushort cylinder, byte head, byte sector, byte count
 
     for (int i = 0; i < count; i++)
     {
-        int lba = CalculateLBA(cylinder, head, sector + i);
+        int lba = baseLBA + i;
         long byteOffset = lba * 512L;
 
         if (byteOffset + 512 > file.Length)
@@ -75,6 +111,13 @@ bool ReadSectors(byte drive, ushort cylinder, byte head, byte sector, byte count
             cpu.Memory[(int)(linearAddress + j)] = buffer[j];
         }
     }
+
+    // for (var i = offset; i < offset + 512 * count; i += 16)
+    // {
+    //     Console.Write($"{segment:X4}:{i:X4}       ");
+    //     MemoryWindow(segment, i);
+    // }
+    // Console.WriteLine();
 
     return true;
 }
@@ -95,7 +138,15 @@ void ReturnFlag(Flags flag, bool set, CPU cpu)
     cpu.Memory.setWordAt(flags_addr_on_stack, updated_flags);
 }
 
+
 // Interrupts
+cpu.HookInterrupt(0x11, cpu =>
+{
+    // AX = 0x41 (binary 0000000001000001):
+    //     bit 0 (0x0001): Floppy installed
+    //     bit 6 (0x0040): Color (CGA/EGA/VGA)
+    cpu.SetReg16(Register.AX, 0x41);
+});
 // https://en.wikipedia.org/wiki/INT_13H
 cpu.HookInterrupt(0x13, cpu =>
 {
@@ -105,6 +156,8 @@ cpu.HookInterrupt(0x13, cpu =>
             cpu.CF = false;
             break;
         case 0x02: // Read
+            // Console.WriteLine();
+            // Console.WriteLine($"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2})");
             var success = ReadSectors(
                 drive: cpu.DL,
                 cylinder: (ushort)(cpu.CX >> 8),
@@ -148,6 +201,9 @@ cpu.HookInterrupt(0x10, cpu =>
             var color = cpu.BL;
             Console.Write((char)character);
             break;
+        default:
+            Debugger.Break();
+            break;
     }
 });
 
@@ -171,6 +227,22 @@ cpu.HookInterrupt(0x19, cpu =>
     boot();
 });
 boot();
+
+void SetupSoftInterrupt(byte i)
+{
+    cpu.Memory.setWordAt(i * 4, (ushort)(i * 4)); // Offset
+    cpu.Memory.setWordAt(i * 4 + 2, (ushort)0xF000); // Segment
+
+    cpu.Memory[0xF0000 + i * 4] = 0xCD; // int
+    cpu.Memory[0xF0000 + i * 4 + 1] = i; // i
+    cpu.Memory[0xF0000 + i * 4 + 2] = 0xCF; // iret
+    cpu.Memory[0xF0000 + i * 4 + 3] = 0x90; // nop
+}
+
+for (var i = 0; i < 256; i++)
+{
+    SetupSoftInterrupt((byte)i);
+}
 
 // Set up the diskette parameter table
 // http://www.techhelpmanual.com/256-int_1eh__diskette_parameter_pointer.html
@@ -227,10 +299,14 @@ string DecodeInstruction()
         return ins.ToString().ToLower();
     }
 }
-
+var k = 0;
 while (!stop)
 {
     var in_breakpoint = false;
+    // if (cpu.ES == 0x0070 && cpu.DI == 0x985A)
+    // {
+    //     in_breakpoint = true;
+    // }
     if (breakpoints_enabled && break_addrs.Contains(cpu.CS * 16 + cpu.IP))
     {
         prompting = true;
@@ -238,42 +314,17 @@ while (!stop)
     }
     if (!prompting && !in_breakpoint)
     {
+        // if (k++ % 4 == 0)
+        // {
+        //     Console.WriteLine();
+        // }
+        // Console.Write($"{cpu.CS:X4}:{cpu.IP:X4}a{cpu.AX:X4}b{cpu.BX:X4}c{cpu.CX:X4}d{cpu.DX:X4}s{cpu.SI:X4}d{cpu.DI:X4}|");
         cpu.Clock();
         continue;
     }
 
-    void MemoryWindow(ushort seg, ushort addr)
-    {
-        for (var i = 0; i < 16; i++)
-        {
-            var current = seg * 16 + addr + i;
-            if (current < mem.Size)
-            {
-                Console.Write($"{mem[current]:X2} ");
-            }
-            else
-            {
-                Console.Write("   ");
-            }
-        }
-        for (var i = 0; i < 16; i++)
-        {
-            var current = seg * 16 + addr + i;
-            if (current < mem.Size)
-            {
-                var c = (char)mem[current];
-                var ch = c >= 32 && c < 127 ? c.ToString() : ".";
-                Console.Write($" {ch}");
-            }
-            else
-            {
-                Console.Write("  ");
-            }
-        }
-        Console.WriteLine();
-    }
-
     // CS:IP Window
+    Console.WriteLine();
     Console.Write($"CS:IP  {cpu.CS:X4}:{cpu.IP:X4}    ");
     MemoryWindow(cpu.CS, cpu.IP);
 

@@ -116,7 +116,7 @@ namespace Emulate8086.Processor
 
         private static void HandleInvalid(CPU self)
         {
-            throw new NotImplementedException();
+            // throw new NotImplementedException();
         }
 
         private static void HandleGroup1(CPU self)

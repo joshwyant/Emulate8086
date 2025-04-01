@@ -37,12 +37,12 @@ namespace Emulate8086.Processor
                     newOffset = (ushort)(self.ip + self.disp);  // TODO: use start IP?
                     break;
                 case 0b1111_1111:
+                    self.DecodeInstruction(
+                        InstructionDecoderFlags.ModRM |
+                        InstructionDecoderFlags.ModRMOpcode
+                    );
                     if (self.insExtOpcode == 0b010)
                     {
-                        self.DecodeInstruction(
-                            InstructionDecoderFlags.ModRM |
-                            InstructionDecoderFlags.ModRMOpcode
-                        );
                         // Indirect within segment
                         // 11111111 (FF) mod 010 r/m
                         // Part of Group 2 instructions
@@ -52,10 +52,6 @@ namespace Emulate8086.Processor
                     }
                     else
                     {
-                        self.DecodeInstruction(
-                            InstructionDecoderFlags.ModRM |
-                            InstructionDecoderFlags.ModRMOpcode
-                        );
                         // Indirect intersegment
                         // 11111111 (FF) mod 011 r/m
                         // Part of Group 2 instructions
@@ -64,9 +60,9 @@ namespace Emulate8086.Processor
                         // Get far pointer from memory
                         // https://www.os2museum.com/wp/undocumented-8086-opcodes/comment-page-1/#comment-87135
                         // For LEA (and CALL FAR AX), ea is still the last computed address. AX in CALL FAR AX is not read.
-                        ushort ea = (ushort)self.modrm_addr;
-                        newOffset = self.memory.wordAt(self.ds, ea);
-                        newSegment = self.memory.wordAt(self.ds, (ushort)(ea + 2));
+                        ushort ea = self.modrm_eff_addr;
+                        newOffset = self.memory.wordAt(self.modrm_seg_addr, ea);
+                        newSegment = self.memory.wordAt(self.modrm_seg_addr, (ushort)(ea + 2));
                         intersegment = true;
                     }
                     break;
@@ -229,7 +225,7 @@ namespace Emulate8086.Processor
                         // Part of Group 2 instructions
 
                         // Get address from r/m
-                        newOffset = self.GetModRMData();
+                        newOffset = self.memory.wordAt(self.modrm_addr);
                     }
                     else
                     {
@@ -239,9 +235,8 @@ namespace Emulate8086.Processor
                         Debug.Assert(self.insExtOpcode == 0b101);
 
                         // Get far pointer from memory
-                        ushort ea = (ushort)self.modrm_addr;
-                        newOffset = self.memory.wordAt(self.ds, ea);
-                        newSegment = self.memory.wordAt(self.ds, (ushort)(ea + 2));
+                        newOffset = self.memory.wordAt(self.modrm_addr);
+                        newSegment = self.memory.wordAt(self.modrm_addr + 2);
                         intersegment = true;
                     }
                     break;
@@ -901,8 +896,17 @@ namespace Emulate8086.Processor
             {
                 // Load new CS:IP from interrupt vector table
                 uint intVectorAddr = (uint)intType * 4;
-                self.ip = self.memory.wordAt((ushort)intVectorAddr);
-                self.cs = self.memory.wordAt((ushort)(intVectorAddr + 2));
+                var ip = self.memory.wordAt((ushort)intVectorAddr);
+                var cs = self.memory.wordAt((ushort)(intVectorAddr + 2));
+                if (cs == self.CS)// && ip == self.IP)
+                {
+                    Debugger.Break();
+                }
+                else
+                {
+                    self.cs = cs;
+                    self.ip = ip;
+                }
                 if (self.csip == 0)
                 {
                     Debugger.Break();

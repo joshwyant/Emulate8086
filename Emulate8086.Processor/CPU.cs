@@ -391,6 +391,8 @@ namespace Emulate8086.Processor
 
         public void Clock(bool in_breakpoint = false)
         {
+            //if (cs == 0xF000) Debugger.Break();
+
             csip_start = csip;
 
             // Read the instruction byte
