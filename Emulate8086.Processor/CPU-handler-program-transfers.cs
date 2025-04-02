@@ -898,9 +898,9 @@ namespace Emulate8086.Processor
                 uint intVectorAddr = (uint)intType * 4;
                 var ip = self.memory.wordAt((ushort)intVectorAddr);
                 var cs = self.memory.wordAt((ushort)(intVectorAddr + 2));
-                if (cs == self.CS)// && ip == self.IP)
+                if (cs == self.CS && ip == self.IP)
                 {
-                    Debugger.Break();
+                    //Debugger.Break();
                 }
                 else
                 {

@@ -220,11 +220,13 @@ namespace Emulate8086.Processor
             if (!self.devices.ContainsKey(port))
             {
                 self.SetReg(Register.AX, 0, self.insW);
+                Debugger.Break();
             }
             else
             {
+                int output = self.GetReg(Register.AX, self.insW);
                 var device = self.devices[port];
-                device.In(port, self.GetReg(Register.AX, self.insW));
+                device.In(port, ref output);
             }
         }
 
@@ -262,11 +264,14 @@ namespace Emulate8086.Processor
                 port = self.dx;
             }
 
-            int output = self.GetReg(Register.AX, self.insW);
             if (self.devices.ContainsKey(port))
             {
                 var device = self.devices[port];
-                device.Out(port, ref output);
+                device.Out(port, self.GetReg(Register.AX, self.insW));
+            }
+            else
+            {
+                Debugger.Break();
             }
         }
         #endregion
