@@ -61,22 +61,73 @@ public class Intel8086Tables
     [Flags]
     public enum TableFlags : ushort
     {
+        /// <summary>
+        /// Empty flags
+        /// </summary>
         _ = 0,
+        /// <summary>
+        /// Byte operation
+        /// </summary>
         b = 1 << 0,
+        /// <summary>
+        /// Direct
+        /// </summary>
         d = 1 << 1,
+        /// <summary>
+        /// From CPU reg
+        /// </summary>
         f = 1 << 2,
+        /// <summary>
+        /// immediate
+        /// </summary>
         i = 1 << 3,
+        /// <summary>
+        /// Immed. to accum.
+        /// </summary>
         ia = 1 << 4,
+        /// <summary>
+        /// Indirect
+        /// </summary>
         id = 1 << 5,
+        /// <summary>
+        /// Immed. byte, sign ext.
+        /// </summary>
         @is = 1 << 6,
+        /// <summary>
+        /// Long ie. intersegment
+        /// </summary>
         l = 1 << 7,
+        /// <summary>
+        /// Memory
+        /// </summary>
         m = 1 << 8,
+        /// <summary>
+        /// EA is second byte
+        /// </summary>
         rm = 1 << 9,
+        /// <summary>
+        /// Short intrasegment
+        /// </summary>
         si = 1 << 10,
+        /// <summary>
+        /// Segment register
+        /// </summary>
         sr = 1 << 11,
+        /// <summary>
+        /// To CPU reg
+        /// </summary>
         t = 1 << 12,
+        /// <summary>
+        /// Variable
+        /// </summary>
         v = 1 << 13,
+        /// <summary>
+        /// Word operation
+        /// </summary>
         w = 1 << 14,
+        /// <summary>
+        /// Zero
+        /// </summary>
         z = 1 << 15,
     }
 }

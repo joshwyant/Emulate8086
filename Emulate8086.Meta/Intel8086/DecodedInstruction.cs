@@ -11,10 +11,15 @@ public class DecodedInstruction
     short disp;
     ushort? long_segment;
     ushort? immediate;
+    int pc_orig;
+    int bytes;
+    byte[] memory;
     public string InstructionName { get; }
     public DecodedInstruction(byte[] memory, ref int pc, Segment prefix = Segment.None)
     {
         // Get from memory
+        this.memory = memory;
+        pc_orig = pc;
         opcode = memory[pc++];
 
         // Get the instruction
@@ -63,7 +68,7 @@ public class DecodedInstruction
                 break;
         }
 
-        if (flags.HasFlag(@is))
+        if (flags.HasFlag(si))
         {
             immediate = (ushort)(short)(sbyte)memory[pc++];
         }
@@ -92,24 +97,32 @@ public class DecodedInstruction
             SS => "SS:",
             DS => "DS:",
             None => $"db {opcode:X2}",
-            _ => ins.ToString().ToLower() + (flags.HasFlag(b) ? "b" : flags.HasFlag(w) ? "w" : "")
+            _ => ins.ToString().ToLower()// + (flags.HasFlag(b) ? "b" : flags.HasFlag(w) ? "w" : "")
         };
 
         if (flags.HasFlag(z))
         {
             InstructionName += "z";
         }
+
+        bytes = pc - pc_orig;
     }
 
     public override string ToString()
     {
-        if (flags.HasFlag(t))
+        return uncommented() + "  ; " + string.Join("", Enumerable.Range(pc_orig, bytes).Select(i => $"{memory[i]:x2}"));
+    }
+
+    string uncommented()
+    {
+        var memory = "";
+        var arg = "";
+        var name = InstructionName.ToString();
+        if (flags.HasFlag(rm))
         {
-            return $"{InstructionName} {modrm!.Value.VariableString()}, {modrm!.Value.ToString(disp)}";
-        }
-        if (flags.HasFlag(f))
-        {
-            return $"{InstructionName} {modrm!.Value.ToString(disp)}, {modrm!.Value.VariableString()}";
+            memory = modrm!.Value.ToString(disp);
+            arg = modrm!.Value.VariableString();
+            return flags.HasFlag(t) ? $"{name} {arg}, {memory}" : $"{name} {memory}, {arg}";
         }
         switch (opcode & 0b11111000)
         {
@@ -124,7 +137,7 @@ public class DecodedInstruction
                 var regname = (flags.HasFlag(b)
                     ? ((Register8)reg).ToString()
                     : ((Register16)reg).ToString()).ToLower();
-                return $"{InstructionName} {regname}" + (immediate != 0 ? $", 0x{immediate:X}" : "");
+                return $"{InstructionName} {regname}" + (immediate is not null ? $", 0x{immediate:X}" : "");
         }
         switch (opcode & 0b11100111)
         {
@@ -137,7 +150,7 @@ public class DecodedInstruction
         {
             return $"{InstructionName} {(flags.HasFlag(b) ? "al" : "ax")}, 0x{immediate:X}";
         }
-        if (flags.HasFlag(m))
+        if (flags.HasFlag(m) | flags.HasFlag(d))
         {
             return $"{InstructionName} [0x{disp:X4}]";
         }

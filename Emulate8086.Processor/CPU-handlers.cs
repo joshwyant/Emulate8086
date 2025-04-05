@@ -349,7 +349,8 @@ namespace Emulate8086.Processor
             // 11110100 (F4)
             // TODO
             //self.halted = true;
-            throw new NotImplementedException();
+            // throw new NotImplementedException();
+            self.WakeHandle.Reset();
         }
 
         private static void HandleWAIT(CPU self)

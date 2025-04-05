@@ -882,17 +882,17 @@ namespace Emulate8086.Processor
             self.IF = false;
             self.TF = false;
 
-            if (self.interrupt_table[intType] != null)
-            {
-                self.interrupt_table[intType]!(self);
+            // if (self.interrupt_table[intType] != null)
+            // {
+            //     self.interrupt_table[intType]!(self);
 
-                // Pop IP, CS, and FLAGS from stack
-                // (simulate IRET)
-                self.ip = (ushort)self.Pop();
-                self.cs = (ushort)self.Pop();
-                self.flags = (Flags)self.Pop();
-            }
-            else
+            //     // Pop IP, CS, and FLAGS from stack
+            //     // (simulate IRET)
+            //     self.ip = (ushort)self.Pop();
+            //     self.cs = (ushort)self.Pop();
+            //     self.flags = (Flags)self.Pop();
+            // }
+            // else
             {
                 // Load new CS:IP from interrupt vector table
                 uint intVectorAddr = (uint)intType * 4;
@@ -908,8 +908,9 @@ namespace Emulate8086.Processor
                     }
                     else
                     {
-                        self.LogInfo(() => $"Calling non-existent interrupt {intType}!");
-
+                        self.LogError(() => $"Calling non-existent interrupt 0x{intType:X2}!");
+                        self.LogError(() => $"AX: {self.AX:X4} BX: {self.BX:X4} CX: {self.CX:X4} DX: {self.CX:X4}");
+                        System.Environment.Exit(1);
                     }
                 }
                 else

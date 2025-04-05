@@ -39,6 +39,7 @@ namespace Emulate8086.Processor
         public Action<Func<string>> InfoLogger { get; set; } = func => Console.WriteLine(func());
         public Action<Func<string>> WarnLogger { get; set; } = func => Console.WriteLine(func());
         public Action<Func<string>> ErrorLogger { get; set; } = func => Console.Error.WriteLine(func());
+        public ManualResetEvent WakeHandle { get; } = new(true);
         protected void LogInfo(Func<string> expression)
         {
             InfoLogger(expression);
@@ -419,9 +420,11 @@ namespace Emulate8086.Processor
             if (cs == 0xF000 && ip < 0x400)
             {
                 var intType = ip / 4;
+                bool found = false;
                 if (interrupt_table[intType] != null)
                 {
                     interrupt_table[intType]!(this);
+                    found = true;
                 }
                 else
                 {
@@ -433,6 +436,8 @@ namespace Emulate8086.Processor
                     else
                     {
                         LogInfo(() => $"Undefined interrupt 0x{intType:X2}");
+                        LogInfo(() => $"AX: {AX:X4} BX: {BX:X4} CX: {CX:X4} DX: {CX:X4}");
+
                     }
                 }
 
@@ -440,7 +445,7 @@ namespace Emulate8086.Processor
                 // (simulate IRET)
                 ip = (ushort)Pop();
                 cs = (ushort)Pop();
-                flags = (Flags)Pop();
+                flags = (Flags)Pop() | (found ? Flags.None : Flags.Carry);
                 return;
             }
 

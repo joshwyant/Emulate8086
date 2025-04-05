@@ -6,7 +6,7 @@ using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
 
 bool prompting = false;
-bool trace = false;
+bool trace = true;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
 HashSet<int> break_addrs = [
@@ -866,6 +866,7 @@ var last = 0;
 var visited = new HashSet<ulong>();
 var instructions_skipped = 0;
 var instruction_gap = 1;
+var nextInstruction = DecodeInstruction();
 while (!stop)
 {
     if (cpu.CS * 16 + cpu.IP == 0)
@@ -899,13 +900,15 @@ while (!stop)
                         instructions_skipped = 0;
                         instruction_gap = 1;
                     }
-                    Console.WriteLine($"{cpu.CS:X4}:{cpu.IP:X4} " + DecodeInstruction());
+                    Console.WriteLine($"{cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
                     Console.Write($"{cpu.CS:X4}:{cpu.IP:X4}a{cpu.AX:X4}b{cpu.BX:X4}c{cpu.CX:X4}d{cpu.DX:X4}s{cpu.SI:X4}d{cpu.DI:X4}|");
                     visited.Add(key);
+                    nextInstruction = DecodeInstruction();
                 }
             }
             last = ip;
         }
+        cpu.WakeHandle.WaitOne(); // In case of HLT
         cpu.Clock();
         continue;
     }
@@ -936,7 +939,7 @@ while (!stop)
     Console.Write((cpu.flags & Emulate8086.Flags.PF) != 0 ? "1" : " ");
     Console.Write((cpu.flags & Emulate8086.Flags.CF) != 0 ? "1" : " ");
     Console.WriteLine();
-    Console.WriteLine($": {DecodeInstruction()}");
+    Console.WriteLine($": {nextInstruction}");
 
     // Prompt
     var command = "";
@@ -1003,11 +1006,11 @@ while (!stop)
         case "s":
         case "":
             if (command == "s") prompting = true;
-            var decodedStr = DecodeInstruction();
             cpu.Clock(in_breakpoint && break_with_debugger);
             in_breakpoint = false;
             // TODO: Disassembly
-            Console.WriteLine($"Executed {decodedStr}");
+            Console.WriteLine($"Executed {nextInstruction}");
+            nextInstruction = DecodeInstruction();
             break;
     }
 }

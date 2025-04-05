@@ -10,7 +10,7 @@ public struct ModRMInfo
             case ModRMMode.Register:
                 return (Register16?.ToString() ?? Register8?.ToString())!.ToLower();
             case ModRMMode.FixedDisplacement:
-                return $"[{displacement}:X]";
+                return $"[{displacement:X}]";
             default:
                 var dispText = Mode == ModRMMode.NoDisplacement ? "" : $" + 0x{displacement:X}";
                 return $"[{RM switch
@@ -85,7 +85,6 @@ public struct ModRMInfo
         }
         else if (Mode == ModRMMode.Register)
         {
-            RM = ModRMDisplacement.NoDisplacement;
             if (flags.HasFlag(b))
             {
                 Register8 = (Register8)RM;
@@ -94,6 +93,7 @@ public struct ModRMInfo
             {
                 Register16 = (Register16)RM;
             }
+            RM = ModRMDisplacement.NoDisplacement;
         }
 
         DisplacementBytes = Mode switch

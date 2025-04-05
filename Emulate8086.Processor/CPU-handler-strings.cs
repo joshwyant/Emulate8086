@@ -116,7 +116,21 @@ namespace Emulate8086.Processor
                 if (!self.movs_started)
                 {
                     self.movs_started = true;
-                    self.LogInfo(() => $"Moving {self.CX} {(self.insW ? "words" : "bytes")} from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4}");
+                    string ascii(byte b)
+                    {
+                        return b >= 0x20 && b < 128 ? ((char)b).ToString() : $"\\x{b:x2}";
+                    }
+                    string asciis(int c)
+                    {
+                        return string.Join("", Enumerable.Range(0, c).Select(i => ascii(self.memory[self.ds * 16 + self.si + i]).ToString()));
+                    }
+                    string bytes(int c)
+                    {
+                        return string.Join(' ', Enumerable.Range(0, c).Select(i => $"{self.Memory[self.ds * 16 + self.si + i]:X2}"));
+                    }
+                    int num = Math.Min(16, (int)self.cx);
+                    var ellipses = num == self.cx ? "" : "...";
+                    self.LogInfo(() => $"Moving {self.CX * (self.insW ? 2 : 1)} bytes from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4} (\"{asciis(num)}\"{ellipses} [{bytes(num)}])");
                 }
             }
 
@@ -166,6 +180,7 @@ namespace Emulate8086.Processor
                 if (self.cx == 0)
                 {
                     self.repActive = false;
+                    self.movs_started = false;
                 }
                 else
                 {
@@ -203,7 +218,27 @@ namespace Emulate8086.Processor
                 if (self.cx == 0)
                 {
                     self.repActive = false;
+                    self.movs_started = false;
                     return;
+                }
+                if (!self.movs_started)
+                {
+                    self.movs_started = true;
+                    string ascii(byte b)
+                    {
+                        return b >= 0x20 && b < 128 ? ((char)b).ToString() : $"\\x{b:x2}";
+                    }
+                    string asciis(int c, int bas)
+                    {
+                        return string.Join("", Enumerable.Range(0, c).Select(i => ascii(self.memory[bas + i]).ToString()));
+                    }
+                    string bytes(int c, int bas)
+                    {
+                        return string.Join(' ', Enumerable.Range(0, c).Select(i => $"{self.Memory[bas + i]:X2}"));
+                    }
+                    int num = Math.Min(16, (int)self.cx);
+                    var ellipses = num == self.cx ? "" : "...";
+                    self.LogInfo(() => $"Comparing {self.CX * (self.insW ? 2 : 1)} bytes from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4} (\"{asciis(num, self.ds * 16 + self.si)}\"{ellipses} [{bytes(num, self.ds * 16 + self.si)}] vs \"{asciis(num, self.es * 16 + self.di)}\"{ellipses} [{bytes(num, self.es * 16 + self.di)}])");
                 }
             }
 
@@ -275,6 +310,7 @@ namespace Emulate8086.Processor
                 if (!shouldRepeat)
                 {
                     self.repActive = false;
+                    self.movs_started = false;
                 }
                 else
                 {
