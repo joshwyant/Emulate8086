@@ -26,6 +26,23 @@ namespace Emulate8086.Processor
             int result = 0, a = 0, b = 0;
             if ((self.insByte & 0b11111100) == 0b00000000)
             {
+                //...
+                if (self.Memory.wordAt(self.csip_start) == 0 &&
+                    self.Memory.wordAt(self.csip_start + 2) == 0 &&
+                    self.Memory.wordAt(self.csip_start + 4) == 0 &&
+                    self.Memory.wordAt(self.csip_start + 6) == 0)
+                {
+                    if (Debugger.IsAttached)
+                    {
+                        // We're executing all 0's
+                        Debugger.Break();
+                    }
+                    else
+                    {
+                        self.LogError(() => "Caught executing zeros");
+                        Environment.Exit(1);
+                    }
+                }
                 // 0000 00dw (00 - 03) | mod reg r/m
                 // Register/memory with register to either
                 self.DecodeInstruction(

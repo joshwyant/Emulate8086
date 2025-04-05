@@ -34,9 +34,34 @@ namespace Emulate8086.Processor
         public byte DH => dh;
         public byte DL => dl;
         private Action<CPU>?[] interrupt_table = new Action<CPU>?[256];
+        private Dictionary<ushort, Func<CPU, ushort, byte>> in_hooks = new();
+        private Dictionary<ushort, Action<CPU, ushort, byte>> out_hooks = new();
+        public Action<Func<string>> InfoLogger { get; set; } = func => Console.WriteLine(func());
+        public Action<Func<string>> WarnLogger { get; set; } = func => Console.WriteLine(func());
+        public Action<Func<string>> ErrorLogger { get; set; } = func => Console.Error.WriteLine(func());
+        protected void LogInfo(Func<string> expression)
+        {
+            InfoLogger(expression);
+        }
+        protected void LogWarning(Func<string> expression)
+        {
+            WarnLogger(expression);
+        }
+        protected void LogError(Func<string> expression)
+        {
+            ErrorLogger(expression);
+        }
         public void HookInterrupt(byte index, Action<CPU> action)
         {
             interrupt_table[index] = action;
+        }
+        public void HookInPort(ushort port, Func<CPU, ushort, byte> func)
+        {
+            in_hooks[port] = func;
+        }
+        public void HookOutPort(ushort port, Action<CPU, ushort, byte> action)
+        {
+            out_hooks[port] = action;
         }
 
         public Instruction NextInstruction => instructionMatrix[memory[csip] >> 4, memory[csip] & 0xF];
@@ -391,7 +416,33 @@ namespace Emulate8086.Processor
 
         public void Clock(bool in_breakpoint = false)
         {
-            //if (cs == 0xF000) Debugger.Break();
+            if (cs == 0xF000 && ip < 0x400)
+            {
+                var intType = ip / 4;
+                if (interrupt_table[intType] != null)
+                {
+                    interrupt_table[intType]!(this);
+                }
+                else
+                {
+                    if (Debugger.IsAttached)
+                    {
+                        // Undefined interrupt
+                        Debugger.Break();
+                    }
+                    else
+                    {
+                        LogInfo(() => $"Undefined interrupt 0x{intType:X2}");
+                    }
+                }
+
+                // Pop IP, CS, and FLAGS from stack
+                // (simulate IRET)
+                ip = (ushort)Pop();
+                cs = (ushort)Pop();
+                flags = (Flags)Pop();
+                return;
+            }
 
             csip_start = csip;
 
@@ -405,8 +456,9 @@ namespace Emulate8086.Processor
             var impl = instructionImpls[ins];
 
             // Call the instruction
-            if (in_breakpoint)
+            if (in_breakpoint && Debugger.IsAttached)
             {
+                // Breaking right before execution of instruction
                 Debugger.Break();
             }
             impl(this);

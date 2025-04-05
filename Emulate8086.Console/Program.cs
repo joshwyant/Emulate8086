@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Diagnostics;
+using System.Text;
 using Emulate8086;
 using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
@@ -46,9 +47,12 @@ HashSet<int> break_addrs = [
     0, // Execution wrapped around
 ];
 
-var disk = /*"/Users/josh/Downloads/Install.img"; //,*/ "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img"; //"/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
+var Log = (Func<string> expression) => Console.WriteLine(expression());
+//Log = _ => { };
+
+var disk = /*"/Users/josh/Downloads/Install.img"; //, "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img"; //*/"/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
 var file = File.OpenRead(disk);
-int drive = 0x00, sectorsPerTrack = 18, heads = 2;
+int drive = 0x00, sectorsPerTrack = file.Length == 1474560 ? 18 : 9, heads = 2;
 
 var memSize = 1024 * 1024;
 var mem = new Memory(memSize); // 1mb // 640KB
@@ -93,19 +97,22 @@ mem.NewWindow(
     offset: vram_end);
 
 var cpu = new CPU(mem);
+cpu.InfoLogger = Log;
+cpu.WarnLogger = Log;
 
 void MemoryWindow(ushort seg, ushort addr)
 {
+    var sb = new StringBuilder();
     for (var i = 0; i < 16; i++)
     {
         var current = seg * 16 + addr + i;
         if (current < mem.Size)
         {
-            Console.Write($"{mem[current]:X2} ");
+            sb.AppendFormat("{0:X2} ", mem[current]);
         }
         else
         {
-            Console.Write("   ");
+            sb.Append("   ");
         }
     }
     for (var i = 0; i < 16; i++)
@@ -115,14 +122,14 @@ void MemoryWindow(ushort seg, ushort addr)
         {
             var c = (char)mem[current];
             var ch = c >= 32 && c < 127 ? c.ToString() : ".";
-            Console.Write($" {ch}");
+            sb.AppendFormat(" {0}", ch);
         }
         else
         {
-            Console.Write("  ");
+            sb.Append("  ");
         }
     }
-    Console.WriteLine();
+    Log(sb.ToString);
 }
 
 bool stop = false;
@@ -256,7 +263,7 @@ cpu.HookInterrupt(0x13, cpu =>
             break;
         case 0x02: // Read
             // Console.WriteLine();
-            // Console.WriteLine($"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2})");
+            Log(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2})");
             var success = ReadSectors(
                 drive: cpu.DL,
                 cylinder: (ushort)(cpu.CX >> 8),
@@ -273,7 +280,16 @@ cpu.HookInterrupt(0x13, cpu =>
             break;
         default:
             // throw new NotImplementedException();
-            Debugger.Break();
+            if (Debugger.IsAttached)
+            {
+                // Int 13h disk services AH=??
+                Debugger.Break();
+            }
+            else
+            {
+                Log(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
+                ReturnFlag(Flags.Carry, false, cpu);
+            }
             break;
     }
 });
@@ -677,7 +693,16 @@ cpu.HookInterrupt(0x10, cpu =>
                 break;
             }
         default:
-            Debugger.Break();
+            if (Debugger.IsAttached)
+            {
+                // Int 10h video services AH=??
+                Debugger.Break();
+            }
+            else
+            {
+                Log(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
+                ReturnFlag(Flags.Carry, false, cpu);
+            }
             break;
     }
 });
@@ -699,7 +724,6 @@ cpu.HookInterrupt(0x10, cpu =>
 //             break;
 //     }
 // });
-cpu.AddDevice(new PIC(), 0x20, 0x21, 0x66, 80);
 
 void boot()
 {
@@ -732,10 +756,15 @@ void SetupSoftInterrupt(byte i)
     cpu.Memory.setWordAt(i * 4, (ushort)(i * 4)); // Offset
     cpu.Memory.setWordAt(i * 4 + 2, (ushort)0xF000); // Segment
 
-    cpu.Memory[0xF0000 + i * 4] = 0xCD; // int
-    cpu.Memory[0xF0000 + i * 4 + 1] = i; // i
-    cpu.Memory[0xF0000 + i * 4 + 2] = 0xCF; // iret
+    cpu.Memory[0xF0000 + i * 4] = 0xCF; // iret
+    cpu.Memory[0xF0000 + i * 4 + 1] = 0x90; // nop
+    cpu.Memory[0xF0000 + i * 4 + 2] = 0x90; // nop
     cpu.Memory[0xF0000 + i * 4 + 3] = 0x90; // nop
+
+    // cpu.Memory[0xF0000 + i * 4] = 0xCD; // int
+    // cpu.Memory[0xF0000 + i * 4 + 1] = i; // i
+    // cpu.Memory[0xF0000 + i * 4 + 2] = 0xCF; // iret
+    // cpu.Memory[0xF0000 + i * 4 + 3] = 0x90; // nop
 }
 
 for (var i = 0; i < 256; i++)
@@ -780,6 +809,40 @@ cpu.Memory[dptPtr + 9] = 15;
 // bMotorOn motor startup time in 1/8 sec. intervals
 cpu.Memory[dptPtr + 10] = 8;
 
+// cpu.HookInPort(0x21, (cpu, port) =>
+// {
+//     return 0xFF; // Everything masked (safe default)
+// });
+
+// cpu.HookInPort(0x66, (cpu, port) =>
+// {
+//     return 0xFF;
+// });
+
+// cpu.HookInPort(0x50, (cpu, port) =>
+// {
+//     return 0x00; // or 0xFF — whatever makes code happy
+// });
+
+// cpu.HookOutPort(0x20, (cpu, port, data) =>
+// {
+//     // EOI or command to PIC
+//     Console.WriteLine($"[I/O] OUT 0x20, AL={data:X2}");
+
+// });
+
+// cpu.HookOutPort(0x21, (cpu, port, data) =>
+// {
+//     // Data port (IRQ mask register)
+//     Console.WriteLine($"[I/O] OUT 0x21, AL={data:X2}");
+
+// });
+
+// cpu.HookOutPort(0x50, (cpu, port, data) =>
+// {
+//     Console.WriteLine($"[I/O] OUT 0x50 (decimal 80), AL={data:X2}");
+
+// });
 
 cpu.Jump(0x0000, 0x7C00);
 
@@ -800,6 +863,9 @@ string DecodeInstruction()
 }
 var k = 0;
 var last = 0;
+var visited = new HashSet<ulong>();
+var instructions_skipped = 0;
+var instruction_gap = 1;
 while (!stop)
 {
     if (cpu.CS * 16 + cpu.IP == 0)
@@ -807,10 +873,6 @@ while (!stop)
         Environment.Exit(1);
     }
     var in_breakpoint = false;
-    // if (cpu.ES == 0x0070 && cpu.DI == 0x985A)
-    // {
-    //     in_breakpoint = true;
-    // }
     if (breakpoints_enabled && break_addrs.Contains(cpu.CS * 16 + cpu.IP))
     {
         prompting = true;
@@ -818,17 +880,29 @@ while (!stop)
     }
     if (!prompting && !in_breakpoint)
     {
-        // if (k++ % 4 == 0)
-        // {
-        //     Console.WriteLine();
-        // }
         if (trace)// && !Debugger.IsAttached)
         {
             var ip = cpu.CS * 16 + cpu.IP;
+            var key = (uint)(cpu.IP | (cpu.CS << 16)) | (ulong)cpu.Memory[ip] << 32;
             if (ip != last) // Avoid repetition
             {
-                //Console.Write($"{cpu.CS:X4}:{cpu.IP:X4}a{cpu.AX:X4}b{cpu.BX:X4}c{cpu.CX:X4}d{cpu.DX:X4}s{cpu.SI:X4}d{cpu.DI:X4}|");
-                Console.WriteLine($"{cpu.CS:X4}:{cpu.IP:X4} " + DecodeInstruction());
+                if (visited.Contains(key))
+                {
+                    //Console.Write("%");
+                    instructions_skipped++;
+                }
+                else
+                {
+                    if (instructions_skipped != 0)
+                    {
+                        Console.WriteLine($"Executed {instructions_skipped} instructions again");
+                        instructions_skipped = 0;
+                        instruction_gap = 1;
+                    }
+                    Console.WriteLine($"{cpu.CS:X4}:{cpu.IP:X4} " + DecodeInstruction());
+                    Console.Write($"{cpu.CS:X4}:{cpu.IP:X4}a{cpu.AX:X4}b{cpu.BX:X4}c{cpu.CX:X4}d{cpu.DX:X4}s{cpu.SI:X4}d{cpu.DI:X4}|");
+                    visited.Add(key);
+                }
             }
             last = ip;
         }
@@ -878,7 +952,8 @@ while (!stop)
             break;
         case "c":
             prompting = false;
-            break;
+            cpu.Clock();
+            continue;
         case "x":
             try
             {
@@ -928,61 +1003,11 @@ while (!stop)
         case "s":
         case "":
             if (command == "s") prompting = true;
+            var decodedStr = DecodeInstruction();
             cpu.Clock(in_breakpoint && break_with_debugger);
             in_breakpoint = false;
             // TODO: Disassembly
-            Console.WriteLine($"Executed {DecodeInstruction()}");
+            Console.WriteLine($"Executed {decodedStr}");
             break;
-    }
-}
-
-class PIC : IDevice
-{
-    public void In(int port, ref int val)
-    {
-        switch (port)
-        {
-            case 0x21:
-                val = 0xFF; // Everything masked (safe default)
-                break;
-
-            case 0x66:
-                val = 0xFF;
-                break;
-
-            case 0x50:
-                val = 0x00; // or 0xFF — whatever makes code happy
-                Console.WriteLine($"[I/O] IN 0x50 => {val:X2}");
-                break;
-
-            default:
-                val = 0;
-                break;
-        }
-    }
-
-    public void Out(int port, int val)
-    {
-        switch (port)
-        {
-            case 0x20:
-                // EOI or command to PIC
-                Console.WriteLine($"[I/O] OUT 0x20, AL={val:X2}");
-                break;
-
-            case 0x21:
-                // Data port (IRQ mask register)
-                Console.WriteLine($"[I/O] OUT 0x21, AL={val:X2}");
-                break;
-
-            case 0x50:
-                Console.WriteLine($"[I/O] OUT 0x50 (decimal 80), AL={val:X2}");
-                break;
-
-
-            default:
-                Console.WriteLine($"[I/O] OUT {port:X2}, AL={val:X2}");
-                break;
-        }
     }
 }

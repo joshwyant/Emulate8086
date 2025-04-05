@@ -194,7 +194,7 @@ namespace Emulate8086.Processor
 
             // Input to AL/AX from...
 
-            var port = 0;
+            ushort port = 0;
             if ((self.insByte & 0b1111_111_0) == 0b1110_010_0)
             {
                 self.DecodeInstruction(
@@ -217,16 +217,30 @@ namespace Emulate8086.Processor
                 port = self.dx;
             }
 
-            if (!self.devices.ContainsKey(port))
+            if (!self.in_hooks.ContainsKey(port))
             {
                 self.SetReg(Register.AX, 0, self.insW);
-                Debugger.Break();
+                if (Debugger.IsAttached)
+                {
+                    // Port not handled
+                    Debugger.Break();
+                }
+                else
+                {
+                    self.LogInfo(() => $"Tried to receive from unset port {port:X2}h");
+                }
             }
             else
             {
-                int output = self.GetReg(Register.AX, self.insW);
-                var device = self.devices[port];
-                device.In(port, ref output);
+                var func = self.in_hooks[port];
+                ushort data = func(self, port);
+                if (self.insW)
+                {
+                    ushort port2 = (ushort)(port + 1);
+                    var func2 = self.in_hooks[port2];
+                    data |= (ushort)(func2(self, port2) << 8);
+                }
+                self.SetReg(Register.AX, data, self.insW);
             }
         }
 
@@ -242,7 +256,7 @@ namespace Emulate8086.Processor
 
             // Output from AL/AX to...
 
-            var port = 0;
+            ushort port = 0;
             if ((self.insByte & 0b1111_111_0) == 0b1110_011_0)
             {
                 self.DecodeInstruction(
@@ -266,12 +280,25 @@ namespace Emulate8086.Processor
 
             if (self.devices.ContainsKey(port))
             {
-                var device = self.devices[port];
-                device.Out(port, self.GetReg(Register.AX, self.insW));
+                var action = self.out_hooks[port];
+                var data = self.GetReg(Register.AX, self.insW);
+                action(self, port, (byte)data);
+                if (self.insW)
+                {
+                    action(self, (ushort)(port + 1), (byte)(data >> 8));
+                }
             }
             else
             {
-                Debugger.Break();
+                if (Debugger.IsAttached)
+                {
+                    // Write to non-hooked port
+                    Debugger.Break();
+                }
+                else
+                {
+                    self.LogInfo(() => $"Tried to write to unset port {port:X}h");
+                }
             }
         }
         #endregion

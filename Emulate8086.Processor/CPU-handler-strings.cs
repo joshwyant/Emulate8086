@@ -85,6 +85,7 @@ namespace Emulate8086.Processor
             HandleMOVS(self);
         }
 
+        bool movs_started = false;
         private static void HandleMOVS(CPU self)
         {
             // IBM Personal Computer Hardware Reference Library - Technical
@@ -109,7 +110,13 @@ namespace Emulate8086.Processor
                 if (self.cx == 0)
                 {
                     self.repActive = false;
+                    self.movs_started = false;
                     return;
+                }
+                if (!self.movs_started)
+                {
+                    self.movs_started = true;
+                    self.LogInfo(() => $"Moving {self.CX} {(self.insW ? "words" : "bytes")} from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4}");
                 }
             }
 

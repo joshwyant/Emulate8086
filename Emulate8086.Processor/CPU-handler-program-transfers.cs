@@ -908,7 +908,7 @@ namespace Emulate8086.Processor
                     }
                     else
                     {
-                        Console.WriteLine($"Calling non-existent interrupt {intType}!");
+                        self.LogInfo(() => $"Calling non-existent interrupt {intType}!");
 
                     }
                 }
