@@ -81,10 +81,10 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Word);
 
                 // Add immediate to accumulator
-                a = self.ax;
+                a = self.insW ? self.ax : self.al;
                 b = self.ins_data;
                 result = a + b;
-                self.ax = (ushort)result;
+                self.SetReg(Register.AX, (ushort)result, self.insW);
             }
             self.SetAdditionFlags(a, b, 0, result);
         }
@@ -159,10 +159,10 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.Word);
 
                 // Add immediate to accumulator
-                a = self.ax;
+                a = self.insW ? self.ax : self.al;
                 b = self.ins_data;
                 result += a + b;
-                self.ax = (ushort)result;
+                self.SetReg(Register.AX, (ushort)result, self.insW);
             }
             self.SetAdditionFlags(a, b, self.CF ? 1 : 0, result);
         }
@@ -359,10 +359,10 @@ namespace Emulate8086.Processor
                 // imm from accum
                 // 0010110w (2C - 2D) data, data if w=1
 
-                a = self.ax;
+                a = self.insW ? self.ax : self.al;
                 b = self.ins_data;
                 result = a - b;
-                self.ax = (ushort)result;
+                self.SetReg(Register.AX, (ushort)result, self.insW);
             }
 
             // Set flags for subtraction
@@ -450,10 +450,10 @@ namespace Emulate8086.Processor
                 // imm from accum
                 // 0001110w (1C - 1D) data, data if w=1
 
-                a = self.ax;
+                a = self.insW ? self.ax : self.al;
                 b = self.ins_data;
                 result = a - b - borrow;
-                self.ax = (ushort)result;
+                self.SetReg(Register.AX, (ushort)result, self.insW);
             }
 
             // Set flags for subtraction
@@ -625,7 +625,7 @@ namespace Emulate8086.Processor
                 // Immediate with accumulator
                 // 0011110w (3C - 3D) data, data if w=1
 
-                a = self.ax;
+                a = self.insW ? self.ax : self.al;
                 b = self.ins_data;
                 result = a - b;
             }
@@ -1099,7 +1099,8 @@ namespace Emulate8086.Processor
         private void SetAdditionFlags(int a, int b, int c, int result)
         {
             // Consider getting these lazily after caching the last result
-            ZF = result == 0;
+            var actualResult = insW ? result : result & 0xFF;
+            ZF = actualResult == 0;
             CF = (result & (insW ? 0x10000 : 0x100)) != 0;
             AF = ((a & 0xF) + (b & 0xF) + c) >= 0x10; // Addition resulting in a carry outside the lower nibble
             SF = (result & (insW ? 0x8000 : 0x80)) != 0;
@@ -1110,7 +1111,8 @@ namespace Emulate8086.Processor
         private void SetSubtractionFlags(int a, int b, int borrow, int result)
         {
             // Consider getting these lazily after caching the last result
-            ZF = result == 0;
+            var actualResult = insW ? result : result & 0xFF;
+            ZF = actualResult == 0;
             CF = (uint)a < (uint)(b + borrow);
             AF = ((a & 0xF) - (b & 0xF) - borrow) < 0; // Borrow from the higher nibble
             SF = (result & (insW ? 0x8000 : 0x80)) != 0;

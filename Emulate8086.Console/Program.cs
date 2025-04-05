@@ -5,6 +5,7 @@ using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
 
 bool prompting = false;
+bool trace = false;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
 HashSet<int> break_addrs = [
@@ -22,13 +23,32 @@ HashSet<int> break_addrs = [
     //0x9f6a1
     //0x70 * 16 + 0x1803,
     //0x700,
-    0x810 * 16 + 0x128,
+    //0x810 * 16 + 0x128,
+    //0x1fe0 * 16 +
+    //0x1fe0 * 16 + 0x7c5e, // FreeDOS boot sector after relocation
+    //0x1fe0 * 16 + 0x7D6C, // FreeDOS sector right before call to "show"
+    //0x1fe0 * 16 + 0x7dd2, // FreeDOS after rep movsb in do_int13_read
+    //0x1fe0 * 16 + 0x7de6, // FreeDOS after jnz read_next
+    //0x1fe0 * 16 + 0x7cc8, // FreeDOS next_entry
+    //0x7cf3, // FreeDOS after call 2nd readDisk 
+    //0x7cfc, // FreeDOS next_clust
+    //0x7d20, // FreeDOS or ax, ax
+//0x0060 * 16 +
+    //0x0000, // FreeDOS second-stage bootloader
+    //0xB587, // FreeDOS exeflat.c after rep movsb
+    //0x001B, // Another movsw
+    //0x00aa, // Before int 10h call
+//0x12ce * 16 + 0x10,
+    //0x16, // kernel loaded
+    //0x12ce * 16 + 0x0092, // After jcxz
+    //0x8f59 * 16 + 0x11d7,
+    //0x0810 * 16 + 0x1093, // MS-DOS after printing 80 spaces
     0, // Execution wrapped around
 ];
 
-var disk = "/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
+var disk = /*"/Users/josh/Downloads/Install.img"; //,*/ "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img"; //"/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
 var file = File.OpenRead(disk);
-int sectorsPerTrack = 18, heads = 2, drive = 0x00;
+int drive = 0x00, sectorsPerTrack = 18, heads = 2;
 
 var memSize = 1024 * 1024;
 var mem = new Memory(memSize); // 1mb // 640KB
@@ -61,8 +81,8 @@ mem.NewWindow(
         }
         else
         {
-            Console.ForegroundColor = (ConsoleColor)(value & 0xF);
-            Console.BackgroundColor = (ConsoleColor)(value >> 4);
+            // Console.ForegroundColor = (ConsoleColor)(value & 0xF);
+            // Console.BackgroundColor = (ConsoleColor)(value >> 4);
         }
         vram[write_addr] = value;
     });
@@ -631,16 +651,31 @@ cpu.HookInterrupt(0x10, cpu =>
     switch (cpu.AH)
     {
         case 0x0E:
-            // Teletype output
-            var character = cpu.AL;
-            var page = cpu.BH;
-            var color = cpu.BL;
+            {
+                // Teletype output
+                var character = cpu.AL;
+                var page = cpu.BH;
+                var color = cpu.BL;
 
-            Console.ForegroundColor = (ConsoleColor)(color & 0xF);
-            Console.BackgroundColor = (ConsoleColor)(color >> 4);
+                // Console.ForegroundColor = (ConsoleColor)(color & 0xF);
+                // Console.BackgroundColor = (ConsoleColor)(color >> 4);
 
-            Console.Write((char)character);
-            break;
+                Console.Write((char)character);
+                break;
+            }
+        case 0x0A:
+            {
+                var character = cpu.AL;
+                var page = cpu.BH;
+                var count = cpu.CX;
+
+                for (var i = 0; i < count; i++)
+                {
+                    Console.Write((char)character);
+                }
+
+                break;
+            }
         default:
             Debugger.Break();
             break;
@@ -669,9 +704,10 @@ cpu.AddDevice(new PIC(), 0x20, 0x21, 0x66, 80);
 void boot()
 {
     // Console.SetBufferSize(80, 25);
-    Console.BackgroundColor = ConsoleColor.Black;
-    Console.ForegroundColor = ConsoleColor.Gray;
+    // Console.BackgroundColor = ConsoleColor.Black;
+    // Console.ForegroundColor = ConsoleColor.Gray;
     Console.Clear();
+    // Console.WriteLine("No boot device");
     var bootsect = new byte[512];
     file.Seek(0, SeekOrigin.Begin);
     file.Read(bootsect, 0, 512);
@@ -763,8 +799,13 @@ string DecodeInstruction()
     }
 }
 var k = 0;
+var last = 0;
 while (!stop)
 {
+    if (cpu.CS * 16 + cpu.IP == 0)
+    {
+        Environment.Exit(1);
+    }
     var in_breakpoint = false;
     // if (cpu.ES == 0x0070 && cpu.DI == 0x985A)
     // {
@@ -781,7 +822,16 @@ while (!stop)
         // {
         //     Console.WriteLine();
         // }
-        // Console.Write($"{cpu.CS:X4}:{cpu.IP:X4}a{cpu.AX:X4}b{cpu.BX:X4}c{cpu.CX:X4}d{cpu.DX:X4}s{cpu.SI:X4}d{cpu.DI:X4}|");
+        if (trace)// && !Debugger.IsAttached)
+        {
+            var ip = cpu.CS * 16 + cpu.IP;
+            if (ip != last) // Avoid repetition
+            {
+                //Console.Write($"{cpu.CS:X4}:{cpu.IP:X4}a{cpu.AX:X4}b{cpu.BX:X4}c{cpu.CX:X4}d{cpu.DX:X4}s{cpu.SI:X4}d{cpu.DI:X4}|");
+                Console.WriteLine($"{cpu.CS:X4}:{cpu.IP:X4} " + DecodeInstruction());
+            }
+            last = ip;
+        }
         cpu.Clock();
         continue;
     }

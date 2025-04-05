@@ -20,7 +20,7 @@ namespace Emulate8086.Processor
         // IBM Personal Computer XT Hardware Refernce Library, 1983
         private static readonly Instruction[,] instructionMatrix =
         {
-            { ADD, ADD, ADD, ADD, ADD, ADD, PUSH, POP, OR, None, OR, OR, OR, OR, PUSH, None },
+            { ADD, ADD, ADD, ADD, ADD, ADD, PUSH, POP, OR, OR, OR, OR, OR, OR, PUSH, None }, // 09 being blank in IBM ref is a typo
             { ADC, ADC, ADC, ADC, ADC, ADC, PUSH, POP, SBB, SBB, SBB, SBB, SBB, SBB, PUSH, POP },
             { AND, AND, AND, AND, AND, AND, ESPrefix, DAA, SUB, SUB, SUB, SUB, SUB, SUB, CSPrefix, DAS },
             { XOR, XOR, XOR, XOR, XOR, XOR, SSPrefix, AAA, CMP, CMP, CMP, CMP, CMP, CMP, DSPrefix, AAS },

@@ -117,10 +117,10 @@ namespace Emulate8086.Processor
                 // Immediate to accumulator
                 // 0010010w (24 - 25) data, data if w=1
 
-                dest = self.ax;
+                dest = self.insW ? self.ax : self.al;
                 src = (ushort)self.ins_data;
                 result = (ushort)(dest & src);
-                self.ax = result;
+                self.SetReg(Register.AX, (ushort)result, self.insW);
             }
 
             // Set flags for logical operations
@@ -205,10 +205,10 @@ namespace Emulate8086.Processor
                 // Immediate to accumulator
                 // 0000110w (0C - 0D) data data if w = 1
 
-                dest = self.ax;
+                dest = self.insW ? self.ax : self.al;
                 src = (ushort)self.ins_data;
                 result = (ushort)(dest | src);
-                self.ax = result;
+                self.SetReg(Register.AX, (ushort)result, self.insW);
             }
 
             // Set flags for logical operations
@@ -293,10 +293,10 @@ namespace Emulate8086.Processor
                 // Immediate to accumulator
                 // 0011010w (34 - 35) data, data if w=1
 
-                dest = self.ax;
+                dest = self.insW ? self.ax : self.al;
                 src = (ushort)self.ins_data;
                 result = (ushort)(dest ^ src);
-                self.ax = result;
+                self.SetReg(Register.AX, (ushort)result, self.insW);
             }
 
             // Set flags for logical operations
@@ -367,7 +367,7 @@ namespace Emulate8086.Processor
                 // Immediate data and accumulator
                 // 1010100w (A8 - A9) data, data if w=1
 
-                value1 = self.ax;
+                value1 = self.insW ? self.ax : self.al;
                 value2 = (ushort)self.ins_data;
                 result = (ushort)(value1 & value2);
             }
@@ -435,9 +435,9 @@ namespace Emulate8086.Processor
                 self.SetModRMData(result);
 
                 // Set flags
+                self.SetLogicalFlags(result);
                 self.CF = lastBit;
                 self.OF = (count == 1) ? ((result & self.GetSignMask()) != 0) != ((value & self.GetSignMask()) != 0) : false;
-                self.SetLogicalFlags(result);
             }
         }
 
@@ -498,9 +498,9 @@ namespace Emulate8086.Processor
                 self.SetModRMData(result);
 
                 // Set flags
+                self.SetLogicalFlags(result);
                 self.CF = lastBit;
                 self.OF = (count == 1) ? ((value & self.GetSignMask()) != 0) : false;
-                self.SetLogicalFlags(result);
             }
         }
 
@@ -571,9 +571,9 @@ namespace Emulate8086.Processor
                 self.SetModRMData(result);
 
                 // Set flags
+                self.SetLogicalFlags(result);
                 self.CF = lastBit;
                 self.OF = (count == 1) ? false : false; // SAR never sets OF with count=1
-                self.SetLogicalFlags(result);
             }
         }
         #endregion

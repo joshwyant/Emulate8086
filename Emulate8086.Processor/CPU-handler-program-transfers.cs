@@ -898,18 +898,24 @@ namespace Emulate8086.Processor
                 uint intVectorAddr = (uint)intType * 4;
                 var ip = self.memory.wordAt((ushort)intVectorAddr);
                 var cs = self.memory.wordAt((ushort)(intVectorAddr + 2));
-                if (cs == self.CS && ip == self.IP)
+
+                if (cs == 0 && ip == 0)
                 {
-                    //Debugger.Break();
+                    if (Debugger.IsAttached)
+                    {
+                        // Calling non-existent interrupt
+                        Debugger.Break();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Calling non-existent interrupt {intType}!");
+
+                    }
                 }
                 else
                 {
                     self.cs = cs;
                     self.ip = ip;
-                }
-                if (self.csip == 0)
-                {
-                    Debugger.Break();
                 }
             }
         }
