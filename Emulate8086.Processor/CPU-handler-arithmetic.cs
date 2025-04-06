@@ -872,6 +872,15 @@ namespace Emulate8086.Processor
         #endregion
 
         #region Division
+        void divby0()
+        {
+            Push((short)flags);
+            Push((short)CS);
+            Push((short)IP);
+            ip = Memory.wordAt(0);
+            cs = Memory.wordAt(2);
+        }
+
         private static void HandleDIV(CPU self)
         {
             // IBM Personal Computer Hardware Reference Library - Technical
@@ -903,9 +912,8 @@ namespace Emulate8086.Processor
             // Division by zero should cause an interrupt (not handled here)
             if (divisor == 0)
             {
-                // In real 8086, this would trigger a divide-by-zero exception (INT 0)
-                // TODO
-                throw new DivideByZeroException("DIV instruction with zero divisor");
+                self.divby0();
+                return;
             }
 
             if (self.insW)
@@ -918,9 +926,8 @@ namespace Emulate8086.Processor
                 // Check for division overflow (quotient > 0xFFFF)
                 if (quotient > 0xFFFF)
                 {
-                    // In real 8086, this would trigger a divide-by-zero exception (INT 0)
-                    throw new OverflowException("DIV instruction quotient overflow");
-                    // TODO
+                    self.divby0();
+                    return;
                 }
 
                 self.ax = (ushort)quotient;
@@ -938,9 +945,8 @@ namespace Emulate8086.Processor
                 // Check for division overflow (quotient > 0xFF)
                 if ((dividend / byteDiv) > 0xFF)
                 {
-                    // In real 8086, this would trigger a divide-by-zero exception (INT 0)
-                    throw new OverflowException("DIV instruction quotient overflow");
-                    // TODO
+                    self.divby0();
+                    return;
                 }
 
                 self.al = quotient;
@@ -981,9 +987,8 @@ namespace Emulate8086.Processor
             // Division by zero should cause an interrupt (not handled here)
             if (divisor == 0)
             {
-                // In real 8086, this would trigger a divide-by-zero exception (INT 0)
-                throw new DivideByZeroException("IDIV instruction with zero divisor");
-                // TODO
+                self.divby0();
+                return;
             }
 
             if (self.insW)
@@ -996,9 +1001,8 @@ namespace Emulate8086.Processor
                 // Check for division overflow
                 if (quotient < -32768 || quotient > 32767)
                 {
-                    // In real 8086, this would trigger a divide-by-zero exception (INT 0)
-                    throw new OverflowException("IDIV instruction quotient overflow");
-                    // TODO
+                    self.divby0();
+                    return;
                 }
 
                 self.ax = (ushort)quotient;
@@ -1016,9 +1020,8 @@ namespace Emulate8086.Processor
                 // Check for division overflow
                 if (quotient < -128 || quotient > 127)
                 {
-                    // In real 8086, this would trigger a divide-by-zero exception (INT 0)
-                    throw new OverflowException("IDIV instruction quotient overflow");
-                    // TODO
+                    self.divby0();
+                    return;
                 }
 
                 self.al = (byte)quotient;

@@ -44,6 +44,8 @@ HashSet<int> break_addrs = [
     //0x12ce * 16 + 0x0092, // After jcxz
     //0x8f59 * 16 + 0x11d7,
     //0x0810 * 16 + 0x1093, // MS-DOS after printing 80 spaces
+    //0x0070 * 16 + 0x079d,
+    //0x0070 * 16 + 0x1a7e,
     0, // Execution wrapped around
 ];
 
@@ -76,7 +78,7 @@ var disks = new string[] {
     "/Users/josh/Downloads/Install.img",
     "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img",
 };
-var selectedDisk = 0;
+var selectedDisk = 2;
 
 var disk = disks[selectedDisk];
 var file = File.OpenRead(disk);
@@ -159,7 +161,7 @@ void MemoryWindow(ushort seg, ushort addr)
             sb.Append("  ");
         }
     }
-    Console.Write(sb.ToString());
+    Console.WriteLine(sb.ToString());
 }
 
 bool stop = false;
@@ -284,6 +286,12 @@ cpu.HookInterrupt(0x01, cpu =>
 {
     // Debug
     Debug(() => "Debug trap");
+    Error(() => "Int 01h, likely panic");
+    Environment.Exit(1);
+    if (Debugger.IsAttached)
+    {
+        Debugger.Break();
+    }
 });
 cpu.HookInterrupt(0x11, cpu =>
 {
@@ -815,7 +823,7 @@ cpu.HookInterrupt(0x1A, (cpu) =>
         case 0x00:
             // http://vitaly_filatov.tripod.com/ng/asm/asm_029.1.html
             var elapsed = DateTime.Now.Subtract(time_on);
-            var count = (int)(elapsed.TotalSeconds / 18.21);
+            var count = (int)(elapsed.TotalSeconds * 1000 / 18.21) % 1573040;
             cpu.SetReg16(Register.CX, (ushort)(count >> 16));
             cpu.SetReg16(Register.DX, (ushort)count);
             cpu.SetReg8(Register.AL, (byte)(elapsed.TotalHours >= 24 ? 0 : 1));
@@ -978,6 +986,27 @@ cpu.HookOutPort(0x50, (cpu, port, data) =>
 
 cpu.Jump(0x0000, 0x7C00);
 
+// Timer
+cpu.HookInterrupt(0x08, cpu =>
+{
+    var prevTicks = (uint)(cpu.Memory.wordAt(0x046C) | (cpu.Memory.wordAt(0x046E) << 16));
+    var elapsed = DateTime.Now.Subtract(time_on);
+    var ticks = (uint)(elapsed.TotalMilliseconds / 18.21);
+    var count = ticks % 1573040;
+    Trace(() => $"Timer tick {count}");
+    cpu.Memory.setWordAt(0x046C, (ushort)count);
+    cpu.Memory.setWordAt(0x046E, (ushort)(count >> 16));
+    cpu.Memory[0x0470] = (byte)(elapsed.TotalDays > 1.0 ? 1 : 0);
+    // chain to 0x1c
+    if (ticks > prevTicks)
+    {
+        var seg = cpu.Memory.wordAt(0, 0x1C * 4 + 2);
+        var off = cpu.Memory.wordAt(0, 0x1C * 4);
+        Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
+        cpu.Jump(seg, off);
+    }
+});
+
 string DecodeInstruction()
 {
     var ins = cpu.NextInstruction;
@@ -999,6 +1028,7 @@ var visited = new HashSet<ulong>();
 var instructions_skipped = 0;
 var instruction_gap = 1;
 var nextInstruction = DecodeInstruction();
+var last_tick = DateTime.Now;
 while (!stop)
 {
     if (cpu.CS * 16 + cpu.IP == 0)
@@ -1013,6 +1043,16 @@ while (!stop)
     }
     if (!prompting && !in_breakpoint)
     {
+        var time = DateTime.Now;
+        if ((time - last_tick).TotalMilliseconds > 18.21 && cpu.flags.HasFlag(Flags.InterruptEnable) && !Debugger.IsAttached)
+        {
+            //cpu.ClearFlag(Flags.InterruptEnable);
+            last_tick = time;
+            cpu.Push((short)cpu.flags);
+            cpu.Push((short)cpu.CS);
+            cpu.Push((short)cpu.IP);
+            cpu.Jump(cpu.Memory.wordAt(0, 0x08 * 4 + 2), cpu.Memory.wordAt(0, 0x08 * 4));
+        }
         if (loglevel >= 4)// && !Debugger.IsAttached)
         {
             var ip = cpu.CS * 16 + cpu.IP;
@@ -1033,7 +1073,8 @@ while (!stop)
                         instruction_gap = 1;
                     }
                     nextInstruction = DecodeInstruction();
-                    Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} a:{cpu.AX:X4} b:{cpu.BX:X4} c:{cpu.CX:X4} d:{cpu.DX:X4} s:{cpu.SI:X4} d:{cpu.DI:X4} {cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
+                    //Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} a:{cpu.AX:X4} b:{cpu.BX:X4} c:{cpu.CX:X4} d:{cpu.DX:X4} s:{cpu.SI:X4} d:{cpu.DI:X4} {cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
+                    Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
                     visited.Add(key);
                 }
             }
@@ -1070,7 +1111,7 @@ while (!stop)
     Console.Write((cpu.flags & Emulate8086.Flags.PF) != 0 ? "1" : " ");
     Console.Write((cpu.flags & Emulate8086.Flags.CF) != 0 ? "1" : " ");
     Console.WriteLine();
-    Console.WriteLine($": {nextInstruction}");
+    Console.WriteLine($": {DecodeInstruction()}");
 
     // Prompt
     var command = "";
