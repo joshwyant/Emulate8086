@@ -78,7 +78,7 @@ var disks = new string[] {
     "/Users/josh/Downloads/Install.img",
     "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img",
 };
-var selectedDisk = 2;
+var selectedDisk = 0;
 
 var disk = disks[selectedDisk];
 var file = File.OpenRead(disk);
@@ -293,12 +293,11 @@ cpu.HookInterrupt(0x01, cpu =>
         Debugger.Break();
     }
 });
+var equipmentList = new EquipmentList();
+cpu.Memory.setWordAt(0x410, equipmentList.ToBitField());
 cpu.HookInterrupt(0x11, cpu =>
 {
-    // AX = 0x41 (binary 0000000001000001):
-    //     bit 0 (0x0001): Floppy installed
-    //     bit 6 (0x0040): Color (CGA/EGA/VGA)
-    cpu.SetReg16(Register.AX, 0x41);
+    cpu.SetReg16(Register.AX, equipmentList.ToBitField());
 });
 // https://en.wikipedia.org/wiki/INT_13H
 cpu.HookInterrupt(0x13, cpu =>
@@ -1184,5 +1183,128 @@ while (!stop)
             Console.WriteLine($"Executed {nextInstruction}");
             nextInstruction = DecodeInstruction();
             break;
+    }
+}
+struct EquipmentList
+{
+    // http://vitaly_filatov.tripod.com/ng/asm/asm_001.9.html
+    // F E D C B A 9 8  7 6 5 4 3 2 1 0
+    // x x . . . . . .  . . . . . . . .  Number of printers installed
+    // . . x . . . . .  . . . . . . . .  Internal modem installed
+    // . . . x . . . .  . . . . . . . .  Game adapter installed? (always 1 on PCJr)
+    // . . . . x x x .  . . . . . . . .  Number of RS-232 ports
+    // . . . . . . . x  . . . . . . . .  Reserved
+    // . . . . . . . .  x x . . . . . .  Number of diskettes - 1 (i.e. 0=1 disk)
+    // . . . . . . . .  . . x x . . . .  Initial video mode (see below)
+    // . . . . . . . .  . . . . x . . .  Reserved
+    // . . . . . . . .  . . . . . x . .  Reserved
+    // . . . . . . . .  . . . . . . x .  Math coprocessor installed?
+    // . . . . . . . .  . . . . . . . x  1=diskettes present; 0=no disks present
+    //
+    //                         Initial video mode
+    //
+    //                 Value                 Meaning
+    //                     00                   Reserved
+    //                     01                   40 x 25 Color
+    //                     10                   80 x 25 Color
+    //                     11                   80 x 25 Monochrome
+    public enum VideoMode : ushort
+    {
+        Reserved = 0b00,
+        Color40x25 = 0b01,
+        Color80x25 = 0b10,
+        Monochrome = 0b11,
+    }
+    public EquipmentList() { }
+    private int printerCount;
+    public int PrinterCount
+    {
+        readonly get => printerCount;
+        set
+        {
+            if (value < 0 || value > 3) throw new ArgumentOutOfRangeException(nameof(value));
+            printerCount = value;
+        }
+    }
+    public bool IsModemInstalled { readonly get; set; }
+    public bool IsGameAdapterInstalled { readonly get; set; }
+    private int rs232PortCount;
+    public int Rs232PortCount
+    {
+        readonly get => rs232PortCount;
+        set
+        {
+            if (value < 0 || value > 7) throw new ArgumentOutOfRangeException(nameof(value));
+            rs232PortCount = value;
+        }
+    }
+    private int disketteCount = 1;
+    public int DisketteCount
+    {
+        readonly get => disketteCount;
+        set
+        {
+            if (value < 1 || value > 4) throw new ArgumentOutOfRangeException(nameof(value));
+            disketteCount = value;
+        }
+    }
+    private VideoMode initialVideoMode = VideoMode.Color80x25;
+    public VideoMode InitialVideoMode
+    {
+        readonly get => initialVideoMode;
+        set
+        {
+            if (value < 0 || value > (VideoMode)3) throw new ArgumentOutOfRangeException(nameof(value));
+            initialVideoMode = value;
+        }
+    }
+    public bool IsCoprocessorInstalled { readonly get; set; }
+    public bool AreDiskettesPresent { readonly get; set; } = true;
+    public readonly ushort ToBitField()
+    {
+        ushort result = 0;
+        if (AreDiskettesPresent)
+        {
+            result |= 0b1;
+        }
+        if (IsCoprocessorInstalled)
+        {
+            result |= 0b10;
+        }
+        result |= (ushort)((int)initialVideoMode << 4);
+        result |= (ushort)((disketteCount - 1) << 6);
+        result |= (ushort)(rs232PortCount << 9);
+        if (IsGameAdapterInstalled)
+        {
+            result |= 1 << 0xC;
+        }
+        if (IsModemInstalled)
+        {
+            result |= 1 << 0xD;
+        }
+        result |= (ushort)(printerCount << 0xE);
+        return result;
+    }
+    public static EquipmentList FromBitField(ushort val)
+    {
+        var areDiskettesPresent = (val & 0b1) != 0;
+        var isCoprocessorInstalled = (val & 0b10) != 0;
+        var initialVideoMode = (VideoMode)((val >> 4) & 0b11);
+        var disketteCount = ((val >> 6) & 0b11) + 1;
+        var rs232PortCount = (val >> 9) & 0b111;
+        var isGameAdapterInstalled = (val & (1 << 0xC)) != 0;
+        var isModemInstalled = (val & (1 << 0xD)) != 0;
+        var printerCount = val >> 0xE;
+        return new EquipmentList
+        {
+            AreDiskettesPresent = areDiskettesPresent,
+            IsCoprocessorInstalled = isCoprocessorInstalled,
+            InitialVideoMode = initialVideoMode,
+            DisketteCount = disketteCount,
+            Rs232PortCount = rs232PortCount,
+            IsGameAdapterInstalled = isGameAdapterInstalled,
+            IsModemInstalled = isModemInstalled,
+            PrinterCount = printerCount
+        };
     }
 }
