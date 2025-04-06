@@ -6,7 +6,7 @@ using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
 
 bool prompting = false;
-bool trace = true;
+var loglevel = 5;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
 HashSet<int> break_addrs = [
@@ -47,12 +47,40 @@ HashSet<int> break_addrs = [
     0, // Execution wrapped around
 ];
 
-var Log = (Func<string> expression) => Console.WriteLine(expression());
-//Log = _ => { };
+var errorLog = (Func<string> expression) => Console.Error.WriteLine(expression());
+var consoleLog = (Func<string> expression) => Console.WriteLine(expression());
+var noLog = (Func<string> expression) => { };
+Action<Func<string>> loggerWithColor(int minLevel, string name, ConsoleColor color, Action<Func<string>> logger)
+{
+    return expression =>
+    {
+        if (loglevel < minLevel) return;
+        var prev = Console.ForegroundColor;
+        var prevbg = Console.BackgroundColor;
+        Console.ResetColor();
+        Console.ForegroundColor = color;
+        logger(() => $"[{name}] " + expression());
+        Console.ForegroundColor = prev;
+        Console.BackgroundColor = prevbg;
+    };
+}
 
-var disk = /*"/Users/josh/Downloads/Install.img"; //, "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img"; //*/"/Users/josh/Downloads/002962_ms_dos_622/disk1.img";
+var Error = loggerWithColor(1, "ERROR", ConsoleColor.Red, errorLog);
+var Warn = loggerWithColor(2, "WARN", ConsoleColor.Yellow, consoleLog);
+var Info = loggerWithColor(3, "INFO", ConsoleColor.DarkGray, consoleLog);
+var Debug = loggerWithColor(4, "DEBUG", ConsoleColor.Blue, consoleLog);
+var Trace = loggerWithColor(5, "TRACE", ConsoleColor.Cyan, consoleLog);
+
+var disks = new string[] {
+    "/Users/josh/Downloads/002962_ms_dos_622/disk1.img",
+    "/Users/josh/Downloads/Install.img",
+    "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img",
+};
+var selectedDisk = 0;
+
+var disk = disks[selectedDisk];
 var file = File.OpenRead(disk);
-int drive = 0x00, sectorsPerTrack = file.Length == 1474560 ? 18 : 9, heads = 2;
+int drive = 0x00, sectorsPerTrack = file.Length == 1474560 ? 18 : 9, heads = 2, tracks = file.Length == 1474560 ? 1440 : 2880;
 
 var memSize = 1024 * 1024;
 var mem = new Memory(memSize); // 1mb // 640KB
@@ -81,12 +109,12 @@ mem.NewWindow(
         if ((write_addr & 1) == 0)
         {
             Console.SetCursorPosition(write_addr % (vga_cols * 2), write_addr / (vga_cols * 2));
-            Console.Write((char)value);
         }
         else
         {
-            // Console.ForegroundColor = (ConsoleColor)(value & 0xF);
-            // Console.BackgroundColor = (ConsoleColor)(value >> 4);
+            Console.ForegroundColor = (ConsoleColor)(value & 0xF);
+            Console.BackgroundColor = (ConsoleColor)(value >> 4);
+            Console.Write((char)vram[write_addr]);
         }
         vram[write_addr] = value;
     });
@@ -97,8 +125,10 @@ mem.NewWindow(
     offset: vram_end);
 
 var cpu = new CPU(mem);
-cpu.InfoLogger = Log;
-cpu.WarnLogger = Log;
+cpu.InfoLogger = Info;
+cpu.WarnLogger = Warn;
+cpu.ErrorLogger = Error;
+cpu.TraceLogger = Trace;
 
 void MemoryWindow(ushort seg, ushort addr)
 {
@@ -129,7 +159,7 @@ void MemoryWindow(ushort seg, ushort addr)
             sb.Append("  ");
         }
     }
-    Log(sb.ToString);
+    Console.Write(sb.ToString());
 }
 
 bool stop = false;
@@ -210,42 +240,51 @@ void ReturnFlag(Flags flag, bool set, CPU cpu)
 
 // Interrupts
 // LPT
-// cpu.HookInterrupt(0x17, cpu =>
-// {
-//     var ah = cpu.GetReg8(Register.AH);
-//     var al = cpu.GetReg8(Register.AL);
-//     var dx = cpu.GetReg(Register.DX, true); // full 16-bit DX = printer port number (0 = LPT1)
+cpu.HookInterrupt(0x17, cpu =>
+{
+    var ah = cpu.GetReg8(Register.AH);
+    var al = cpu.GetReg8(Register.AL);
+    var dx = cpu.GetReg(Register.DX, true); // full 16-bit DX = printer port number (0 = LPT1)
 
-//     void SetStatus(byte status, bool error = false)
-//     {
-//         cpu.SetReg8(Register.AH, status); // status in AH
-//         ReturnFlag(Flags.Carry, error, cpu); // CF = error?
-//     }
+    void SetStatus(byte status, bool error = false)
+    {
+        cpu.SetReg8(Register.AH, status); // status in AH
+        ReturnFlag(Flags.Carry, error, cpu); // CF = error?
+    }
 
-//     switch (ah)
-//     {
-//         case 0x00: // Initialize printer
-//             Console.WriteLine($"[INT 17h] Init LPT{dx + 1}");
-//             SetStatus(0x18); // ready, selected, ack
-//             break;
+    switch (ah)
+    {
+        case 0x00: // Initialize printer
+            Trace(() => $"[INT 17h] Init LPT{dx + 1}");
+            SetStatus(0x18); // ready, selected, ack
+            break;
 
-//         case 0x01: // Send character
-//             Console.WriteLine($"[INT 17h] LPT{dx + 1}: PRINT '{(char)al}' (0x{al:X2})");
-//             SetStatus(0x18);
-//             break;
+        case 0x01: // Send character
+            Trace(() => $"[INT 17h] LPT{dx + 1}: PRINT '{(char)al}' (0x{al:X2})");
+            SetStatus(0x18);
+            break;
 
-//         case 0x02: // Get printer status
-//             Console.WriteLine($"[INT 17h] Status for LPT{dx + 1}");
-//             SetStatus(0x18);
-//             break;
+        case 0x02: // Get printer status
+            Trace(() => $"[INT 17h] Status for LPT{dx + 1}");
+            SetStatus(0x18);
+            break;
 
-//         default:
-//             Console.WriteLine($"[INT 17h] Unsupported AH={ah:X2}");
-//             SetStatus(0x80, error: true); // error bit set
-//             break;
-//     }
-// });
-
+        default:
+            Warn(() => $"[INT 17h] Unsupported AH={ah:X2}");
+            SetStatus(0x80, error: true); // error bit set
+            break;
+    }
+});
+cpu.HookInterrupt(0x00, cpu =>
+{
+    // Divide by 0
+    Trace(() => "Divide by zero called");
+});
+cpu.HookInterrupt(0x01, cpu =>
+{
+    // Debug
+    Debug(() => "Debug trap");
+});
 cpu.HookInterrupt(0x11, cpu =>
 {
     // AX = 0x41 (binary 0000000001000001):
@@ -262,21 +301,47 @@ cpu.HookInterrupt(0x13, cpu =>
             cpu.CF = false;
             break;
         case 0x02: // Read
-            // Console.WriteLine();
-            Log(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2})");
-            var success = ReadSectors(
-                drive: cpu.DL,
-                cylinder: (ushort)(cpu.CX >> 8),
-                head: (byte)(cpu.DX >> 8),
-                sector: (byte)(cpu.CX & 0x3F),
-                count: cpu.AL,
-                segment: cpu.ES,
-                offset: cpu.BX,
-                out byte status
-            );
-            cpu.SetReg16(Register.AX, (ushort)((status << 8) | cpu.AL));
+            var success = false;
+            if (drive == cpu.DL)
+            {
+                success = ReadSectors(
+                    drive: cpu.DL,
+                    cylinder: (ushort)(cpu.CX >> 8),
+                    head: (byte)(cpu.DX >> 8),
+                    sector: (byte)(cpu.CX & 0x3F),
+                    count: cpu.AL,
+                    segment: cpu.ES,
+                    offset: cpu.BX,
+                    out byte status
+                );
 
-            ReturnFlag(Flags.Carry, !success, cpu);
+                string ascii(byte b)
+                {
+                    return b >= 0x20 && b < 128 ? ((char)b).ToString() : $"\\x{b:x2}";
+                }
+                string asciis(int c)
+                {
+                    return string.Join("", Enumerable.Range(0, c).Select(i => ascii(cpu.Memory[cpu.ES * 16 + cpu.BX + i]).ToString()));
+                }
+                string bytes(int c)
+                {
+                    return string.Join(' ', Enumerable.Range(0, c).Select(i => $"{cpu.Memory[cpu.ES * 16 + cpu.BX + i]:X2}"));
+                }
+                int num = 16;
+                Info(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2} \"{asciis(num)}\"... [{bytes(num)}])");
+                cpu.SetReg16(Register.AX, (ushort)((status << 8) | cpu.AL));
+
+                ReturnFlag(Flags.Carry, !success, cpu);
+            }
+            break;
+        case 0x08:
+            cpu.SetReg8(Register.AH, 0x00); // No error
+            cpu.SetReg8(Register.AL, 1); // Drives present
+            cpu.SetReg8(Register.CH, (byte)tracks);   // Cylinders
+            cpu.SetReg8(Register.CL, (byte)sectorsPerTrack);   // Sectors per track
+            cpu.SetReg8(Register.DH, (byte)heads);    // Heads
+            cpu.SetReg8(Register.DL, (byte)drive); // Hard drive
+            ReturnFlag(Flags.Carry, false, cpu);
             break;
         default:
             // throw new NotImplementedException();
@@ -287,7 +352,7 @@ cpu.HookInterrupt(0x13, cpu =>
             }
             else
             {
-                Log(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
+                Warn(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
                 ReturnFlag(Flags.Carry, false, cpu);
             }
             break;
@@ -623,10 +688,12 @@ byte MapASCIIToScanCode(char c)
             return 0;
     }
 }
-// cpu.HookInterrupt(0x15, cpu =>
-// {
-//     ReturnFlag(Flags.Carry, true, cpu);
-// });
+cpu.HookInterrupt(0x15, cpu =>
+{
+    // Advanced BIOS services?
+    Trace(() => $"Int 0x15 AH={cpu.AH} called");
+    ReturnFlag(Flags.Carry, true, cpu);
+});
 cpu.HookInterrupt(0x16, cpu =>
 {
     switch (cpu.AH)
@@ -658,6 +725,11 @@ cpu.HookInterrupt(0x16, cpu =>
             ReturnFlag(Flags.Zero, true, cpu); // No key is pressed
             break;
         default:
+            Warn(() => $"Int 16h unsupported function {cpu.AH:X2}h");
+            if (Debugger.IsAttached)
+            {
+                Debugger.Break();
+            }
             ReturnFlag(Flags.Carry, true, cpu);
             break;
     }
@@ -673,8 +745,8 @@ cpu.HookInterrupt(0x10, cpu =>
                 var page = cpu.BH;
                 var color = cpu.BL;
 
-                // Console.ForegroundColor = (ConsoleColor)(color & 0xF);
-                // Console.BackgroundColor = (ConsoleColor)(color >> 4);
+                Console.ForegroundColor = (ConsoleColor)(color & 0xF);
+                Console.BackgroundColor = (ConsoleColor)(color >> 4);
 
                 Console.Write((char)character);
                 break;
@@ -700,36 +772,91 @@ cpu.HookInterrupt(0x10, cpu =>
             }
             else
             {
-                Log(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
+                Warn(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
                 ReturnFlag(Flags.Carry, false, cpu);
             }
             break;
     }
 });
-// cpu.HookInterrupt(0x14, cpu =>
-// {
-//     switch (cpu.AH)
-//     {
-//         case 0x00: // Initialize serial port
-//             Console.WriteLine($"[INT 14h] Init COM{cpu.DX + 1}: config=0x{cpu.AL:X2}");
+cpu.HookInterrupt(0x14, cpu =>
+{
+    switch (cpu.AH)
+    {
+        case 0x00: // Initialize serial port
+            Trace(() => $"[INT 14h] Init COM{cpu.DX + 1}: config=0x{cpu.AL:X2}");
 
-//             cpu.SetReg8(Register.AH, 0x00); // No error
-//             cpu.SetReg8(Register.AL, 0x03); // Line status: Transmitter ready, empty
-//             ReturnFlag(Flags.Carry, false, cpu);
-//             break;
+            cpu.SetReg8(Register.AH, 0x00); // No error
+            cpu.SetReg8(Register.AL, 0x03); // Line status: Transmitter ready, empty
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
 
-//         default:
-//             Console.WriteLine($"[INT 14h] Unsupported function AH={cpu.AH:X2}");
-//             ReturnFlag(Flags.Carry, false, cpu);
-//             break;
-//     }
-// });
+        default:
+            Warn(() => $"[INT 14h] Unsupported function AH={cpu.AH:X2}");
+            if (Debugger.IsAttached)
+            {
+                Debugger.Break();
+            }
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+    }
+});
+var time_on = DateTime.Now;
+cpu.HookInterrupt(0x1A, (cpu) =>
+{
+    var t = DateTime.Now;
+    byte bcd(int i)
+    {
+        var tens = i / 10;
+        var ones = i % 10;
+        return (byte)(ones | (tens << 4));
+    }
+    switch (cpu.AH)
+    {
+        case 0x00:
+            // http://vitaly_filatov.tripod.com/ng/asm/asm_029.1.html
+            var elapsed = DateTime.Now.Subtract(time_on);
+            var count = (int)(elapsed.TotalSeconds / 18.21);
+            cpu.SetReg16(Register.CX, (ushort)(count >> 16));
+            cpu.SetReg16(Register.DX, (ushort)count);
+            cpu.SetReg8(Register.AL, (byte)(elapsed.TotalHours >= 24 ? 0 : 1));
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+        case 0x02:
+            // https://forum.osdev.org/viewtopic.php?t=29849
+            // http://vitaly_filatov.tripod.com/ng/asm/asm_029.3.html
+            // CH = hour (BCD)
+            // CL = minutes (BCD)
+            // DH = seconds (BCD)
+            cpu.SetReg8(Register.CH, bcd(t.Hour));
+            cpu.SetReg8(Register.CL, bcd(t.Minute));
+            cpu.SetReg8(Register.DH, bcd(t.Second));
+            cpu.SetReg8(Register.DL, (byte)(t.IsDaylightSavingTime() ? 1 : 0));
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+        case 0x04:
+            // http://vitaly_filatov.tripod.com/ng/asm/asm_029.5.html
+            cpu.SetReg8(Register.CH, (byte)(t.Year < 2000 ? 0x19 : 0x20));
+            cpu.SetReg8(Register.CL, bcd(t.Year % 100));
+            cpu.SetReg8(Register.DH, bcd(t.Month));
+            cpu.SetReg8(Register.DL, bcd(t.Day));
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+        default:
+            if (Debugger.IsAttached)
+            {
+                Debugger.Break();
+            }
+            Warn(() => $"Unimplemented int 1Ah ah={cpu.AH:X2}h");
+            ReturnFlag(Flags.Carry, true, cpu);
+            break;
+    }
+});
 
 void boot()
 {
     // Console.SetBufferSize(80, 25);
-    // Console.BackgroundColor = ConsoleColor.Black;
-    // Console.ForegroundColor = ConsoleColor.Gray;
+    Console.BackgroundColor = ConsoleColor.Black;
+    Console.ForegroundColor = ConsoleColor.Gray;
     Console.Clear();
     // Console.WriteLine("No boot device");
     var bootsect = new byte[512];
@@ -809,27 +936,32 @@ cpu.Memory[dptPtr + 9] = 15;
 // bMotorOn motor startup time in 1/8 sec. intervals
 cpu.Memory[dptPtr + 10] = 8;
 
-// cpu.HookInPort(0x21, (cpu, port) =>
-// {
-//     return 0xFF; // Everything masked (safe default)
-// });
+cpu.HookInPort(0x21, (cpu, port) =>
+{
+    // LPT/Printer
+    Trace(() => $"LPT IN 0x21");
+    return 0xFF; // Everything masked (safe default)
+});
 
-// cpu.HookInPort(0x66, (cpu, port) =>
-// {
-//     return 0xFF;
-// });
+cpu.HookInPort(0x66, (cpu, port) =>
+{
+    // A20?
+    Trace(() => $"Port 66h IN");
+    return 0xFF;
+});
 
-// cpu.HookInPort(0x50, (cpu, port) =>
-// {
-//     return 0x00; // or 0xFF — whatever makes code happy
-// });
+cpu.HookInPort(0x50, (cpu, port) =>
+{
+    Trace(() => $"Port 50h IN");
+    return 0xFF; // or 0x00 — whatever makes code happy
+});
 
-// cpu.HookOutPort(0x20, (cpu, port, data) =>
-// {
-//     // EOI or command to PIC
-//     Console.WriteLine($"[I/O] OUT 0x20, AL={data:X2}");
+cpu.HookOutPort(0x20, (cpu, port, data) =>
+{
+    // EOI or command to PIC
+    Trace(() => $"[I/O] PIC/EOI OUT 0x20, AL={data:X2}");
 
-// });
+});
 
 // cpu.HookOutPort(0x21, (cpu, port, data) =>
 // {
@@ -838,11 +970,11 @@ cpu.Memory[dptPtr + 10] = 8;
 
 // });
 
-// cpu.HookOutPort(0x50, (cpu, port, data) =>
-// {
-//     Console.WriteLine($"[I/O] OUT 0x50 (decimal 80), AL={data:X2}");
+cpu.HookOutPort(0x50, (cpu, port, data) =>
+{
+    Trace(() => $"OUT 0x50, AL={data:X2}");
 
-// });
+});
 
 cpu.Jump(0x0000, 0x7C00);
 
@@ -881,7 +1013,7 @@ while (!stop)
     }
     if (!prompting && !in_breakpoint)
     {
-        if (trace)// && !Debugger.IsAttached)
+        if (loglevel >= 4)// && !Debugger.IsAttached)
         {
             var ip = cpu.CS * 16 + cpu.IP;
             var key = (uint)(cpu.IP | (cpu.CS << 16)) | (ulong)cpu.Memory[ip] << 32;
@@ -896,14 +1028,13 @@ while (!stop)
                 {
                     if (instructions_skipped != 0)
                     {
-                        Console.WriteLine($"Executed {instructions_skipped} instructions again");
+                        Trace(() => $"Repeated {instructions_skipped} instructions");
                         instructions_skipped = 0;
                         instruction_gap = 1;
                     }
-                    Console.WriteLine($"{cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
-                    Console.Write($"{cpu.CS:X4}:{cpu.IP:X4}a{cpu.AX:X4}b{cpu.BX:X4}c{cpu.CX:X4}d{cpu.DX:X4}s{cpu.SI:X4}d{cpu.DI:X4}|");
-                    visited.Add(key);
                     nextInstruction = DecodeInstruction();
+                    Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} a:{cpu.AX:X4} b:{cpu.BX:X4} c:{cpu.CX:X4} d:{cpu.DX:X4} s:{cpu.SI:X4} d:{cpu.DI:X4} {cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
+                    visited.Add(key);
                 }
             }
             last = ip;

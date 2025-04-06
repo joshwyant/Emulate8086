@@ -39,7 +39,7 @@ namespace Emulate8086.Processor
                     }
                     else
                     {
-                        self.LogError(() => "Caught executing zeros");
+                        self.LogError(() => $"{self.CS:X4}:{self.csip_start - self.CS * 16:X4} Caught executing zeros");
                         Environment.Exit(1);
                     }
                 }

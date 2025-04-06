@@ -36,10 +36,16 @@ namespace Emulate8086.Processor
         private Action<CPU>?[] interrupt_table = new Action<CPU>?[256];
         private Dictionary<ushort, Func<CPU, ushort, byte>> in_hooks = new();
         private Dictionary<ushort, Action<CPU, ushort, byte>> out_hooks = new();
+        public Action<Func<string>> TraceLogger { get; set; } = func => Console.WriteLine(func());
+        public Action<Func<string>> DebugLogger { get; set; } = func => Console.WriteLine(func());
         public Action<Func<string>> InfoLogger { get; set; } = func => Console.WriteLine(func());
         public Action<Func<string>> WarnLogger { get; set; } = func => Console.WriteLine(func());
         public Action<Func<string>> ErrorLogger { get; set; } = func => Console.Error.WriteLine(func());
         public ManualResetEvent WakeHandle { get; } = new(true);
+        protected void LogTrace(Func<string> expression)
+        {
+            TraceLogger(expression);
+        }
         protected void LogInfo(Func<string> expression)
         {
             InfoLogger(expression);
@@ -435,8 +441,7 @@ namespace Emulate8086.Processor
                     }
                     else
                     {
-                        LogInfo(() => $"Undefined interrupt 0x{intType:X2}");
-                        LogInfo(() => $"AX: {AX:X4} BX: {BX:X4} CX: {CX:X4} DX: {CX:X4}");
+                        LogWarning(() => $"Undefined interrupt 0x{intType:X2} (AX: {AX:X4} BX: {BX:X4} CX: {CX:X4} DX: {CX:X4})");
 
                     }
                 }

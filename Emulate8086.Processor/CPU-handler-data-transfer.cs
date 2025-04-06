@@ -227,7 +227,7 @@ namespace Emulate8086.Processor
                 }
                 else
                 {
-                    self.LogInfo(() => $"Tried to receive from unset port {port:X2}h");
+                    self.LogWarning(() => $"Tried to receive from unset port {port:X2}h");
                 }
             }
             else
@@ -278,7 +278,7 @@ namespace Emulate8086.Processor
                 port = self.dx;
             }
 
-            if (self.devices.ContainsKey(port))
+            if (self.out_hooks.ContainsKey(port))
             {
                 var action = self.out_hooks[port];
                 var data = self.GetReg(Register.AX, self.insW);
@@ -297,7 +297,7 @@ namespace Emulate8086.Processor
                 }
                 else
                 {
-                    self.LogInfo(() => $"Tried to write to unset port {port:X}h");
+                    self.LogWarning(() => $"Tried to write to unset port {port:X}h");
                 }
             }
         }

@@ -10,7 +10,7 @@ public class Intel8086Tables
     // IBM Personal Computer XT Hardware Refernce Library, 1983
     public static readonly Intel8086InstructionTagValue[,] InstructionMatrix =
     {
-        { ADD, ADD, ADD, ADD, ADD, ADD, PUSH, POP, OR, None, OR, OR, OR, OR, PUSH, None },
+        { ADD, ADD, ADD, ADD, ADD, ADD, PUSH, POP, OR, OR, OR, OR, OR, OR, PUSH, None },
         { ADC, ADC, ADC, ADC, ADC, ADC, PUSH, POP, SBB, SBB, SBB, SBB, SBB, SBB, PUSH, POP },
         { AND, AND, AND, AND, AND, AND, ES, DAA, SUB, SUB, SUB, SUB, SUB, SUB, CS, DAS },
         { XOR, XOR, XOR, XOR, XOR, XOR, SS, AAA, CMP, CMP, CMP, CMP, CMP, CMP, DS, AAS },

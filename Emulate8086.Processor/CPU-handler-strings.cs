@@ -130,7 +130,7 @@ namespace Emulate8086.Processor
                     }
                     int num = Math.Min(16, (int)self.cx);
                     var ellipses = num == self.cx ? "" : "...";
-                    self.LogInfo(() => $"Moving {self.CX * (self.insW ? 2 : 1)} bytes from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4} (\"{asciis(num)}\"{ellipses} [{bytes(num)}])");
+                    self.LogTrace(() => $"Moving {self.CX * (self.insW ? 2 : 1)} bytes from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4} (\"{asciis(num)}\"{ellipses} [{bytes(num)}])");
                 }
             }
 
@@ -238,7 +238,7 @@ namespace Emulate8086.Processor
                     }
                     int num = Math.Min(16, (int)self.cx);
                     var ellipses = num == self.cx ? "" : "...";
-                    self.LogInfo(() => $"Comparing {self.CX * (self.insW ? 2 : 1)} bytes from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4} (\"{asciis(num, self.ds * 16 + self.si)}\"{ellipses} [{bytes(num, self.ds * 16 + self.si)}] vs \"{asciis(num, self.es * 16 + self.di)}\"{ellipses} [{bytes(num, self.es * 16 + self.di)}])");
+                    self.LogTrace(() => $"Comparing {self.CX * (self.insW ? 2 : 1)} bytes from {self.DS:X4}:{self.SI:X4} to {self.ES:X4}:{self.DI:X4} (\"{asciis(num, self.ds * 16 + self.si)}\"{ellipses} [{bytes(num, self.ds * 16 + self.si)}] vs \"{asciis(num, self.es * 16 + self.di)}\"{ellipses} [{bytes(num, self.es * 16 + self.di)}])");
                 }
             }
 
