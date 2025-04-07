@@ -46,6 +46,9 @@ HashSet<int> break_addrs = [
     //0x0810 * 16 + 0x1093, // MS-DOS after printing 80 spaces
     //0x0070 * 16 + 0x079d,
     //0x0070 * 16 + 0x1a7e,
+    //0x0060 * 16 + 0x0090,
+    //0x70 * 16 + 0x1276,
+    //0x027c * 16 + 0x184c,
     0, // Execution wrapped around
 ];
 
@@ -77,12 +80,21 @@ var disks = new string[] {
     "/Users/josh/Downloads/002962_ms_dos_622/disk1.img",
     "/Users/josh/Downloads/Install.img",
     "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img",
+    "/Users/josh/Downloads/PCDOS100.img",
+    "/Users/josh/Downloads/5150-DIAG-100.img",
+    "/Users/josh/Downloads/PCDOS200-C400.img",
+    "/Users/josh/Downloads/COMPAQ-DOS211.img",
+    "/Users/josh/Downloads/EMPTY-1440K.img",
 };
-var selectedDisk = 0;
+var selectedDisk = 6;
 
 var disk = disks[selectedDisk];
 var file = File.OpenRead(disk);
-int drive = 0x00, sectorsPerTrack = file.Length == 1474560 ? 18 : 9, heads = 2, tracks = file.Length == 1474560 ? 1440 : 2880;
+int drive = 0x00,
+    sectorsPerTrack = file.Length == 1474560 ? 18 : 9,
+    heads = 2,
+    tracks = (int)file.Length / sectorsPerTrack / heads / 512;
+// int drive = 0x80, sectorsPerTrack = 17, heads = 4, tracks = (int)file.Length / 17 / 4 / 512;
 
 var memSize = 1024 * 1024;
 var mem = new Memory(memSize); // 1mb // 640KB
@@ -281,6 +293,16 @@ cpu.HookInterrupt(0x00, cpu =>
 {
     // Divide by 0
     Trace(() => "Divide by zero called");
+
+    // Does DOS multiplex this function?
+    // Just do what BOCHS does
+    if (cpu.AH == 0xC0)
+    {
+        cpu.SetReg8(Register.AH, 0);
+        cpu.SetSeg(Register.ES, 0x0040);
+        cpu.SetReg16(Register.BX, 0x000e);
+        ReturnFlag(Flags.Carry, false, cpu);
+    }
 });
 cpu.HookInterrupt(0x01, cpu =>
 {
@@ -1043,7 +1065,7 @@ while (!stop)
     if (!prompting && !in_breakpoint)
     {
         var time = DateTime.Now;
-        if ((time - last_tick).TotalMilliseconds > 18.21 && cpu.flags.HasFlag(Flags.InterruptEnable) && !Debugger.IsAttached)
+        if ((time - last_tick).TotalMilliseconds >= 18.21 && cpu.flags.HasFlag(Flags.InterruptEnable) && !Debugger.IsAttached)
         {
             //cpu.ClearFlag(Flags.InterruptEnable);
             last_tick = time;
@@ -1051,6 +1073,13 @@ while (!stop)
             cpu.Push((short)cpu.CS);
             cpu.Push((short)cpu.IP);
             cpu.Jump(cpu.Memory.wordAt(0, 0x08 * 4 + 2), cpu.Memory.wordAt(0, 0x08 * 4));
+        }
+        else
+        {
+            if (cpu.Halted)
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(18.21).Subtract(time - last_tick));
+            }
         }
         if (loglevel >= 4)// && !Debugger.IsAttached)
         {

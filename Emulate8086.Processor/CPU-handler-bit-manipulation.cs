@@ -84,10 +84,11 @@ namespace Emulate8086.Processor
                     self.SetModRMData(result);
                 }
             }
-            else if (0b1000_00_00 == (self.insByte & 0b11111110))
+            else if (0b1000_00_00 == (self.insByte & 0b11111100))
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.S |
                     InstructionDecoderFlags.ModRM |
                     InstructionDecoderFlags.ModRMOpcode |
                     InstructionDecoderFlags.Byte |
@@ -95,7 +96,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immediate to register/memory
-                // 1000000w (80 - 81) mod 100 r/m data, data if w=1
+                // 100000sw (80 - 81) mod 100 r/m data, data if w=1 and s=0
 
                 Debug.Assert(self.insExtOpcode == 0b100);
 
@@ -171,10 +172,11 @@ namespace Emulate8086.Processor
                     self.SetModRMData(result);
                 }
             }
-            else if (0b1000_000_0 == (self.insByte & 0b11111110))
+            else if (0b1000_000_0 == (self.insByte & 0b11111100))
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W |
+                    InstructionDecoderFlags.S |
                     InstructionDecoderFlags.ModRM |
                     InstructionDecoderFlags.ModRMOpcode |
                     InstructionDecoderFlags.Byte |
@@ -182,7 +184,7 @@ namespace Emulate8086.Processor
                 );
 
                 // Immedate to register/memory
-                // 1000000w (80 - 81) mod 001 r/m data, data if w=1
+                // 100000sw (80 - 83) mod 001 r/m data, data if w=1 and s=0
                 // Part of Immediate group
 
                 Debug.Assert(self.insExtOpcode == 0b001);

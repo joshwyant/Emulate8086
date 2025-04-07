@@ -133,12 +133,14 @@ namespace Emulate8086.Processor
             }
         }
 
+        bool modrm_fixed_addr = false;
         public void DecodeModRMByte()
         {
             modrm_is_reg = false;
             modrm_eff_addr = 0;
-            modrm_seg_addr = 0;
+            modrm_seg_addr = seg_prefix_or_default();
             modrm_register = Register.None;
+            modrm_fixed_addr = false;
 
             var mod = (Register)(modrm >> 6);
             var rm = (Register)(modrm & 0b111);
@@ -162,12 +164,15 @@ namespace Emulate8086.Processor
             {
                 modrm_is_reg = true;
                 modrm_register = rm;
-                // modrm_seg_addr = rm switch
-                // {
-                //     Register.SP => seg_prefix_or_default(Register.SS),
-                //     Register.BP => seg_prefix_or_default(Register.SS),
-                //     _ => seg_prefix_or_default()
-                // };
+
+                // In case register is used as an address
+                modrm_seg_addr = rm switch
+                {
+                    Register.SP => seg_prefix_or_default(Register.SS),
+                    Register.BP => seg_prefix_or_default(Register.SS),
+                    _ => seg_prefix_or_default()
+                };
+                modrm_eff_addr = GetReg16(modrm_register);
                 return;
             }
             if (mod == Register.Disp8)
@@ -192,6 +197,7 @@ namespace Emulate8086.Processor
                         // Return effective address directly as mem. addr. (displacement from 0)
                         modrm_eff_addr = (ushort)((hi << 8) | lo);
                         modrm_seg_addr = seg_prefix_or_default();
+                        modrm_fixed_addr = true;
                         return;
                     }
                 }
@@ -451,8 +457,11 @@ namespace Emulate8086.Processor
                 ip = (ushort)Pop();
                 cs = (ushort)Pop();
                 flags = (Flags)Pop() | (found ? Flags.None : Flags.Carry);
+
+                Halted = false; // External interrupt resumes the system
                 return;
             }
+            if (Halted) return;
 
             csip_start = csip;
 

@@ -48,7 +48,10 @@ namespace Emulate8086.Processor
                         // Part of Group 2 instructions
 
                         // Get address from r/m
-                        newOffset = self.GetModRMData();
+                        newOffset =
+                            self.modrm_fixed_addr ?
+                            self.modrm_eff_addr :
+                            self.GetModRMData();
                     }
                     else
                     {
@@ -60,9 +63,8 @@ namespace Emulate8086.Processor
                         // Get far pointer from memory
                         // https://www.os2museum.com/wp/undocumented-8086-opcodes/comment-page-1/#comment-87135
                         // For LEA (and CALL FAR AX), ea is still the last computed address. AX in CALL FAR AX is not read.
-                        ushort ea = self.modrm_eff_addr;
-                        newOffset = self.memory.wordAt(self.modrm_seg_addr, ea);
-                        newSegment = self.memory.wordAt(self.modrm_seg_addr, (ushort)(ea + 2));
+                        newOffset = self.memory.wordAt(self.modrm_addr);
+                        newSegment = self.memory.wordAt(self.modrm_addr + 2);
                         intersegment = true;
                     }
                     break;
@@ -83,25 +85,13 @@ namespace Emulate8086.Processor
                     break;
             }
 
-            // Push return address onto stack
-            self.sp -= 2;
-            self.memory.setWordAt(self.ss, self.sp, self.ip);
-
             if (intersegment)
             {
-                // For intersegment, also push CS
-                self.sp -= 2;
-                self.memory.setWordAt(self.ss, self.sp, self.cs);
-
-                // Update CS:IP
+                self.Push((short)self.cs);
                 self.cs = newSegment;
-                self.ip = newOffset;
             }
-            else
-            {
-                // Update IP only
-                self.ip = newOffset;
-            }
+            self.Push((short)self.IP);
+            self.ip = newOffset;
         }
 
         private static void HandleRET(CPU self)
@@ -225,7 +215,12 @@ namespace Emulate8086.Processor
                         // Part of Group 2 instructions
 
                         // Get address from r/m
-                        newOffset = self.memory.wordAt(self.modrm_addr);
+                        newOffset = self.modrm_is_reg ?
+                            self.GetReg16(self.modrm_register) :
+                                self.modrm_fixed_addr ?
+                                    self.modrm_eff_addr :
+                            //self.modrm_eff_addr;
+                            self.memory.wordAt(self.modrm_addr);
                     }
                     else
                     {
