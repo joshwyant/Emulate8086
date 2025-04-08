@@ -39,7 +39,8 @@ namespace Emulate8086.Processor
                 case 0b1111_1111:
                     self.DecodeInstruction(
                         InstructionDecoderFlags.ModRM |
-                        InstructionDecoderFlags.ModRMOpcode
+                        InstructionDecoderFlags.ModRMOpcode |
+                        InstructionDecoderFlags.ModRM16
                     );
                     if (self.insExtOpcode == 0b010)
                     {
@@ -49,8 +50,8 @@ namespace Emulate8086.Processor
 
                         // Get address from r/m
                         newOffset =
-                            self.modrm_fixed_addr ?
-                            self.modrm_eff_addr :
+                            // self.modrm_fixed_addr ?
+                            // self.modrm_eff_addr :
                             self.GetModRMData();
                     }
                     else
@@ -217,8 +218,8 @@ namespace Emulate8086.Processor
                         // Get address from r/m
                         newOffset = self.modrm_is_reg ?
                             self.GetReg16(self.modrm_register) :
-                                self.modrm_fixed_addr ?
-                                    self.modrm_eff_addr :
+                            // self.modrm_fixed_addr ?
+                            //     self.modrm_eff_addr :
                             //self.modrm_eff_addr;
                             self.memory.wordAt(self.modrm_addr);
                     }

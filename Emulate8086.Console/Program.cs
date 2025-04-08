@@ -6,7 +6,7 @@ using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
 
 bool prompting = false;
-var loglevel = 5;
+var loglevel = 0;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
 HashSet<int> break_addrs = [
@@ -49,6 +49,11 @@ HashSet<int> break_addrs = [
     //0x0060 * 16 + 0x0090,
     //0x70 * 16 + 0x1276,
     //0x027c * 16 + 0x184c,
+    //0x286 * 16 + 0x187a,
+    //0x9F51 * 16 + 0x0196,
+    //0x70 * 16 + 0x321A, // MS-DOS/v4.0/src/BIOS/MSINIT.ASM PUBLIC  INIT
+    // 0x286 * 16 + 0x187a,
+    //0x286 * 16 + 0x1828,
     0, // Execution wrapped around
 ];
 
@@ -86,7 +91,7 @@ var disks = new string[] {
     "/Users/josh/Downloads/COMPAQ-DOS211.img",
     "/Users/josh/Downloads/EMPTY-1440K.img",
 };
-var selectedDisk = 6;
+var selectedDisk = 7;
 
 var disk = disks[selectedDisk];
 var file = File.OpenRead(disk);

@@ -348,6 +348,10 @@ namespace Emulate8086.Processor
                 insW = (insByte & flag_mask) != 0;
                 flag_mask <<= 1; // Next flag is to the left of the W flag.
             }
+            if ((flags & InstructionDecoderFlags.ModRM16) != 0)
+            {
+                insW = true; // Override for e.g. push and pop r/m
+            }
 
             // There can be a D, S, or V flag to the left of the W flag.
             if ((flags & InstructionDecoderFlags.D) != 0)

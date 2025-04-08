@@ -38,7 +38,8 @@ namespace Emulate8086.Processor
                 // Decode
                 self.DecodeInstruction(
                     InstructionDecoderFlags.ModRM |
-                    InstructionDecoderFlags.ModRMOpcode
+                    InstructionDecoderFlags.ModRMOpcode |
+                    InstructionDecoderFlags.ModRM16
                 );
 
                 // 11111111 (FF) mod 110 rm
@@ -90,7 +91,8 @@ namespace Emulate8086.Processor
             {
                 self.DecodeInstruction(
                     InstructionDecoderFlags.ModRM |
-                    InstructionDecoderFlags.ModRMOpcode
+                    InstructionDecoderFlags.ModRMOpcode |
+                    InstructionDecoderFlags.ModRM16
                 );
 
                 // 10001111 (8F) mod 000 rm
@@ -109,7 +111,7 @@ namespace Emulate8086.Processor
                 // 01011 reg (58 - 5F)
                 // Register
 
-                self.SetReg(self.insReg, (ushort)self.Pop());
+                self.SetReg16(self.insReg, (ushort)self.Pop());
             }
             else
             {
@@ -269,7 +271,7 @@ namespace Emulate8086.Processor
             }
             else
             {
-                Debug.Assert((self.insByte & 0b1111_111_0) == 0b1110_110_0);
+                Debug.Assert((self.insByte & 0b1111_111_0) == 0b1110_111_0);
                 self.DecodeInstruction(
                     InstructionDecoderFlags.W
                 );
