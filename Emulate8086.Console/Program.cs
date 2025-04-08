@@ -843,6 +843,7 @@ void MapConsoleKeyInfoToScanCode(ConsoleKeyInfo info, out byte scancode, out byt
                 case ConsoleKey.Multiply:
                     scancode = (byte)(info.Modifiers.HasFlag(ConsoleModifiers.Shift)
                         ? 0 : 0x37);
+                    ascii = 0x2A;
                     break;
                 default:
                     scancode = info.Key switch
@@ -926,6 +927,10 @@ void MapConsoleKeyInfoToScanCode(ConsoleKeyInfo info, out byte scancode, out byt
                     break;
             }
         }
+    }
+    if (ascii == 0 && info.KeyChar != '\0' && !char.IsControl(info.KeyChar) && info.KeyChar <= 127)
+    {
+        ascii = (byte)info.KeyChar;
     }
 }
 byte MapASCIIToScanCode(char c)
