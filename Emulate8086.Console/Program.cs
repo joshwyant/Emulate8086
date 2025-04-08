@@ -87,19 +87,27 @@ var disks = new string[] {
     "/Users/josh/Downloads/FD13-FloppyEdition/144m/x86BOOT.img",
     "/Users/josh/Downloads/PCDOS100.img",
     "/Users/josh/Downloads/5150-DIAG-100.img",
-    "/Users/josh/Downloads/PCDOS200-C400.img",
     "/Users/josh/Downloads/COMPAQ-DOS211.img",
     "/Users/josh/Downloads/EMPTY-1440K.img",
 };
-var selectedDisk = 7;
+var hardDisks = new string[] {
+    "/Users/josh/Downloads/PCDOS200-C400.img",
+};
+var selectedDisk = 6;
+var selectedHardDisk = 0;
 
 var disk = disks[selectedDisk];
+var hardDisk = hardDisks[selectedHardDisk];
 var file = File.OpenRead(disk);
+var hardDriveFile = File.OpenRead(hardDisk);
 int drive = 0x00,
     sectorsPerTrack = file.Length == 1474560 ? 18 : 9,
     heads = 2,
     tracks = (int)file.Length / sectorsPerTrack / heads / 512;
-// int drive = 0x80, sectorsPerTrack = 17, heads = 4, tracks = (int)file.Length / 17 / 4 / 512;
+int hardDrive = 0x80, hardDriveSectorsPerTrack = 17, hardDriveHeads = 4, hardDriveCylinders = (int)file.Length / 17 / 4 / 512;
+
+var bootDrive = 0x80;
+bool hddEnabled = true;
 
 var memSize = 1024 * 1024;
 var mem = new Memory(memSize); // 1mb // 640KB
@@ -107,7 +115,6 @@ const int vga_cols = 80;
 const int vga_rows = 25;
 const int vram_size = vga_cols + vga_rows * 2;
 var vram = new byte[vram_size];
-
 
 mem.ClearMaps();
 const int vram_addr = 0xB8000;
@@ -309,52 +316,61 @@ cpu.HookInterrupt(0x12, cpu =>
     var size = Math.Min(640, cpu.Memory.Size - 1);
     cpu.SetReg16(Register.AX, (ushort)(size - 1)); // Bochs says 639
 });
-int CalculateLBA(ushort cylinder, byte head, int sector)
+int CalculateLBA(ushort cylinder, byte head, int sector, int heads, int sectorsPerTrack)
 {
     return (cylinder * heads + head) * sectorsPerTrack + (sector - 1);
 }
-bool ReadSectors(byte drive, ushort cylinder, byte head, byte sector, byte count, ushort segment, ushort offset, out byte status)
+bool ReadSectors(Stream file, int heads, int sectorsPerTrack, byte drive, ushort cylinder, byte head, byte sector, byte count, ushort segment, ushort offset, out byte status)
 {
-    var baseLBA = CalculateLBA(cylinder, head, sector);
-    // Console.WriteLine($"LBA: 0x{baseLBA}");
-    status = 0x00; // success
-
-    if (count < 1)
+    try
     {
-        status = 1;
-        return false;
-    }
+        var baseLBA = CalculateLBA(cylinder, head, sector, heads, sectorsPerTrack);
+        // Console.WriteLine($"LBA: 0x{baseLBA}");
+        status = 0x00; // success
 
-    for (int i = 0; i < count; i++)
-    {
-        int lba = baseLBA + i;
-        long byteOffset = lba * 512L;
-
-        if (byteOffset + 512 > file.Length)
+        if (count < 1)
         {
-            status = 0x01; // etc.
+            status = 1;
             return false;
         }
 
-        file.Seek(byteOffset, SeekOrigin.Begin);
-        byte[] buffer = new byte[512];
-        file.Read(buffer, 0, 512);
-
-        uint linearAddress = (uint)((segment << 4) + offset + i * 512);
-        for (var j = 0; j < 512; j++)
+        for (int i = 0; i < count; i++)
         {
-            cpu.Memory[(int)(linearAddress + j)] = buffer[j];
+            int lba = baseLBA + i;
+            long byteOffset = lba * 512L;
+
+            if (byteOffset + 512 > file.Length)
+            {
+                status = 0x01; // etc.
+                return false;
+            }
+
+            file.Seek(byteOffset, SeekOrigin.Begin);
+            byte[] buffer = new byte[512];
+            file.Read(buffer, 0, 512);
+
+            uint linearAddress = (uint)((segment << 4) + offset + i * 512);
+            for (var j = 0; j < 512; j++)
+            {
+                cpu.Memory[(int)(linearAddress + j)] = buffer[j];
+            }
         }
+
+        // for (var i = offset; i < offset + 512 * count; i += 16)
+        // {
+        //     Console.Write($"{segment:X4}:{i:X4}       ");
+        //     MemoryWindow(segment, i);
+        // }
+        // Console.WriteLine();
+
+        return true;
     }
-
-    // for (var i = offset; i < offset + 512 * count; i += 16)
-    // {
-    //     Console.Write($"{segment:X4}:{i:X4}       ");
-    //     MemoryWindow(segment, i);
-    // }
-    // Console.WriteLine();
-
-    return true;
+    catch (Exception e)
+    {
+        Error(() => e.Message);
+        status = 1;
+        return false;
+    }
 }
 // https://en.wikipedia.org/wiki/INT_13H
 cpu.HookInterrupt(0x13, cpu =>
@@ -366,45 +382,75 @@ cpu.HookInterrupt(0x13, cpu =>
             break;
         case 0x02: // Read
             var success = false;
+            int _heads = 0, _sectorsPerTrack = 0;
+            Stream _file = null!;
+
             if (drive == cpu.DL)
             {
-                success = ReadSectors(
-                    drive: cpu.DL,
-                    cylinder: (ushort)(cpu.CX >> 8),
-                    head: (byte)(cpu.DX >> 8),
-                    sector: (byte)(cpu.CX & 0x3F),
-                    count: cpu.AL,
-                    segment: cpu.ES,
-                    offset: cpu.BX,
-                    out byte status
-                );
-
-                string ascii(byte b)
-                {
-                    return b >= 0x20 && b < 128 ? ((char)b).ToString() : $"\\x{b:x2}";
-                }
-                string asciis(int c)
-                {
-                    return string.Join("", Enumerable.Range(0, c).Select(i => ascii(cpu.Memory[cpu.ES * 16 + cpu.BX + i]).ToString()));
-                }
-                string bytes(int c)
-                {
-                    return string.Join(' ', Enumerable.Range(0, c).Select(i => $"{cpu.Memory[cpu.ES * 16 + cpu.BX + i]:X2}"));
-                }
-                int num = 16;
-                Info(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2} \"{asciis(num)}\"... [{bytes(num)}])");
-                cpu.SetReg16(Register.AX, (ushort)((status << 8) | cpu.AL));
-
-                ReturnFlag(Flags.Carry, !success, cpu);
+                _heads = heads;
+                _sectorsPerTrack = sectorsPerTrack;
+                _file = file;
             }
+            else if (hardDrive == cpu.DL)
+            {
+                _heads = hardDriveHeads;
+                _sectorsPerTrack = hardDriveSectorsPerTrack;
+                _file = hardDriveFile;
+            }
+            else
+            {
+                ReturnFlag(Flags.Carry, false, cpu);
+                break;
+            }
+
+            success = ReadSectors(
+                _file,
+                _heads,
+                _sectorsPerTrack,
+                drive: cpu.DL,
+                cylinder: (ushort)(cpu.CX >> 8),
+                head: (byte)(cpu.DX >> 8),
+                sector: (byte)(cpu.CX & 0x3F),
+                count: cpu.AL,
+                segment: cpu.ES,
+                offset: cpu.BX,
+                out byte status
+            );
+
+            string ascii(byte b)
+            {
+                return b >= 0x20 && b < 128 ? ((char)b).ToString() : $"\\x{b:x2}";
+            }
+            string asciis(int c)
+            {
+                return string.Join("", Enumerable.Range(0, c).Select(i => ascii(cpu.Memory[cpu.ES * 16 + cpu.BX + i]).ToString()));
+            }
+            string bytes(int c)
+            {
+                return string.Join(' ', Enumerable.Range(0, c).Select(i => $"{cpu.Memory[cpu.ES * 16 + cpu.BX + i]:X2}"));
+            }
+            int num = 16;
+            Info(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2} \"{asciis(num)}\"... [{bytes(num)}])");
+            cpu.SetReg16(Register.AX, (ushort)((status << 8) | cpu.AL));
+
+            ReturnFlag(Flags.Carry, !success, cpu);
             break;
         case 0x08:
+            // https://en.wikipedia.org/wiki/INT_13H#INT_13h_AH=08h:_Read_Drive_Parameters
+            var dl = cpu.GetReg8(Register.DL);
             cpu.SetReg8(Register.AH, 0x00); // No error
-            cpu.SetReg8(Register.AL, 1); // Drives present
-            cpu.SetReg8(Register.CH, (byte)tracks);   // Cylinders
-            cpu.SetReg8(Register.CL, (byte)sectorsPerTrack);   // Sectors per track
-            cpu.SetReg8(Register.DH, (byte)heads);    // Heads
-            cpu.SetReg8(Register.DL, (byte)drive); // Hard drive
+            cpu.SetReg8(Register.CH, (byte)((dl == 0x80 ? hardDriveCylinders : tracks) - 1));   // Cylinders - 1
+            cpu.SetReg8(Register.CL, (byte)(dl == 0x80 ? hardDriveSectorsPerTrack : sectorsPerTrack));   // Sectors per track
+            cpu.SetReg8(Register.DH, (byte)((dl == 0x80 ? hardDriveHeads : heads) - 1));    // Heads
+            cpu.SetReg8(Register.DL, (byte)1); // Hard drives present
+            if (dl < 0x80)
+            {
+                // Diskette Parameter Table
+                var dptOff = cpu.Memory.wordAt(0x1e * 4);
+                var dptSeg = cpu.Memory.wordAt(0x1e * 4 + 2);
+                cpu.SetSeg(Register.ES, dptSeg);
+                cpu.SetReg(Register.DI, dptOff);
+            }
             ReturnFlag(Flags.Carry, false, cpu);
             break;
         default:
@@ -846,7 +892,7 @@ cpu.HookInterrupt(0x17, cpu =>
             break;
     }
 });
-void boot()
+void boot(int bootDrive)
 {
     // Console.SetBufferSize(80, 25);
     Console.BackgroundColor = ConsoleColor.Black;
@@ -854,22 +900,23 @@ void boot()
     Console.Clear();
     // Console.WriteLine("No boot device");
     var bootsect = new byte[512];
-    file.Seek(0, SeekOrigin.Begin);
-    file.Read(bootsect, 0, 512);
+    var f = bootDrive == 0x80 ? hardDriveFile : file;
+    f.Seek(0, SeekOrigin.Begin);
+    f.Read(bootsect, 0, 512);
     // Load the boot sector into memory.
     for (var i = 0; i < 512; i++)
     {
         mem[0x7C00 + i] = bootsect[i];
     }
     // Set the drive number
-    cpu.SetReg8(Register.DL, (byte)drive);
+    cpu.SetReg8(Register.DL, (byte)bootDrive);
 }
 cpu.HookInterrupt(0x19, cpu =>
 {
     // Reboot
-    boot();
+    boot(bootDrive);
 });
-boot();
+boot(bootDrive);
 cpu.HookInterrupt(0x1A, (cpu) =>
 {
     var t = DateTime.Now;
