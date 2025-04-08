@@ -1176,13 +1176,16 @@ void boot(int bootDrive)
     }
     // Set the drive number
     cpu.SetReg8(Register.DL, (byte)bootDrive);
+
+    // Begin execution at the loaded code
+    cpu.Jump(0x0000, 0x7C00);
 }
 cpu.HookInterrupt(0x19, cpu =>
 {
     // Reboot
     boot(bootDrive);
 });
-boot(bootDrive);
+
 var time_diff = TimeSpan.FromSeconds(0);
 cpu.HookInterrupt(0x1A, (cpu) =>
 {
@@ -1379,8 +1382,6 @@ for (ushort i = 0x2f2; i <= 0x2f7; i++)
     cpu.HookOutPort(i, rearm);
 }
 
-cpu.Jump(0x0000, 0x7C00);
-
 string DecodeInstruction()
 {
     var ins = cpu.NextInstruction;
@@ -1403,6 +1404,8 @@ var instructions_skipped = 0;
 var instruction_gap = 1;
 var nextInstruction = DecodeInstruction();
 var last_tick = DateTime.Now;
+
+boot(bootDrive);
 while (!stop)
 {
     if (cpu.CS * 16 + cpu.IP == 0)
