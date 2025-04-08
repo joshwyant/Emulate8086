@@ -93,7 +93,7 @@ var disks = new string[] {
 var hardDisks = new string[] {
     "/Users/josh/Downloads/PCDOS200-C400.img",
 };
-var selectedDisk = 6;
+var selectedDisk = 1;
 var selectedHardDisk = 0;
 
 var disk = disks[selectedDisk];
@@ -104,9 +104,16 @@ int drive = 0x00,
     sectorsPerTrack = file.Length == 1474560 ? 18 : 9,
     heads = 2,
     tracks = (int)file.Length / sectorsPerTrack / heads / 512;
-int hardDrive = 0x80, hardDriveSectorsPerTrack = 17, hardDriveHeads = 4, hardDriveCylinders = (int)file.Length / 17 / 4 / 512;
+DriveOperationStatus diskStatus = DriveOperationStatus.Success;
 
-var bootDrive = 0x80;
+int hardDrive = 0x80,
+    hardDriveSectorsPerTrack = 17,
+    hardDriveHeads = 4,
+    hardDriveCylinders = (int)file.Length / 17 / 4 / 512;
+DriveOperationStatus hardDriveStatus = DriveOperationStatus.Success;
+
+
+var bootDrive = 0;
 bool hddEnabled = true;
 
 var memSize = 1024 * 1024;
@@ -320,17 +327,17 @@ int CalculateLBA(ushort cylinder, byte head, int sector, int heads, int sectorsP
 {
     return (cylinder * heads + head) * sectorsPerTrack + (sector - 1);
 }
-bool ReadSectors(Stream file, int heads, int sectorsPerTrack, byte drive, ushort cylinder, byte head, byte sector, byte count, ushort segment, ushort offset, out byte status)
+bool ReadSectors(Stream file, int heads, int sectorsPerTrack, byte drive, ushort cylinder, byte head, byte sector, byte count, ushort segment, ushort offset, out DriveOperationStatus status)
 {
     try
     {
         var baseLBA = CalculateLBA(cylinder, head, sector, heads, sectorsPerTrack);
         // Console.WriteLine($"LBA: 0x{baseLBA}");
-        status = 0x00; // success
+        status = DriveOperationStatus.Success; // success
 
         if (count < 1)
         {
-            status = 1;
+            status = DriveOperationStatus.InvalidCommand;
             return false;
         }
 
@@ -341,7 +348,7 @@ bool ReadSectors(Stream file, int heads, int sectorsPerTrack, byte drive, ushort
 
             if (byteOffset + 512 > file.Length)
             {
-                status = 0x01; // etc.
+                status = DriveOperationStatus.SeekFailure; // etc.
                 return false;
             }
 
@@ -368,7 +375,7 @@ bool ReadSectors(Stream file, int heads, int sectorsPerTrack, byte drive, ushort
     catch (Exception e)
     {
         Error(() => e.Message);
-        status = 1;
+        status = DriveOperationStatus.UndefinedError;
         return false;
     }
 }
@@ -378,7 +385,32 @@ cpu.HookInterrupt(0x13, cpu =>
     switch (cpu.AH)
     {
         case 0x00: // Reset Disk System
-            cpu.CF = false;
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+        case 0x01: // Status of Last Drive Operation
+            switch (cpu.DL)
+            {
+                case 0x00:
+                    cpu.SetReg8(Register.AH, (byte)diskStatus);
+                    ReturnFlag(Flags.Carry, false, cpu);
+                    break;
+                case 0x80:
+                    if (hddEnabled)
+                    {
+                        cpu.SetReg8(Register.AH, (byte)hardDriveStatus);
+                        ReturnFlag(Flags.Carry, false, cpu);
+                    }
+                    else
+                    {
+                        cpu.SetReg8(Register.AH, (byte)DriveOperationStatus.DriveNotReady);
+                        ReturnFlag(Flags.Carry, true, cpu);
+                    }
+                    break;
+                default:
+                    cpu.SetReg8(Register.AH, (byte)DriveOperationStatus.DriveNotReady);
+                    ReturnFlag(Flags.Carry, true, cpu);
+                    break;
+            }
             break;
         case 0x02: // Read
             var success = false;
@@ -414,8 +446,17 @@ cpu.HookInterrupt(0x13, cpu =>
                 count: cpu.AL,
                 segment: cpu.ES,
                 offset: cpu.BX,
-                out byte status
+                out DriveOperationStatus status
             );
+
+            if (cpu.DL == 0x00)
+            {
+                diskStatus = status;
+            }
+            else if (cpu.DL == 0x80)
+            {
+                hardDriveStatus = status;
+            }
 
             string ascii(byte b)
             {
@@ -430,8 +471,8 @@ cpu.HookInterrupt(0x13, cpu =>
                 return string.Join(' ', Enumerable.Range(0, c).Select(i => $"{cpu.Memory[cpu.ES * 16 + cpu.BX + i]:X2}"));
             }
             int num = 16;
-            Info(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2} \"{asciis(num)}\"... [{bytes(num)}])");
-            cpu.SetReg16(Register.AX, (ushort)((status << 8) | cpu.AL));
+            Trace(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2} \"{asciis(num)}\"... [{bytes(num)}])");
+            cpu.SetReg16(Register.AX, (ushort)(((byte)status << 8) | cpu.AL));
 
             ReturnFlag(Flags.Carry, !success, cpu);
             break;
@@ -453,6 +494,24 @@ cpu.HookInterrupt(0x13, cpu =>
             }
             ReturnFlag(Flags.Carry, false, cpu);
             break;
+        case 0x15:
+            // http://www.techhelpmanual.com/201-int_13h_15h__get_diskette_type_or_check_hard_drive_installed.html
+            byte ah15status = 0;
+            switch (cpu.DL)
+            {
+                case 0x00:
+                    ah15status = 0x01; // Diskette drive, can't detect disk change (yet)
+                    break;
+                case 0x80:
+                    ah15status = 0x03; // Hard disk
+                    break;
+                default:
+                    ah15status = 0;
+                    break;
+            }
+            cpu.SetReg8(Register.AL, ah15status);
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
         default:
             Warn(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
             // throw new NotImplementedException();
@@ -461,7 +520,7 @@ cpu.HookInterrupt(0x13, cpu =>
                 // Int 13h disk services AH=??
                 Debugger.Break();
             }
-            ReturnFlag(Flags.Carry, false, cpu);
+            ReturnFlag(Flags.Carry, true, cpu);
             break;
     }
 });
@@ -1066,6 +1125,16 @@ cpu.HookOutPort(0x50, (cpu, port, data) =>
 
 });
 
+// https://github.com/microsoft/MS-DOS/blob/2d04cacc5322951f187bb17e017c12920ac8ebe2/v4.0/src/BIOS/SYSINIT1.ASM#L1540
+void rearm(CPU cpu, ushort port, byte data)
+{
+    // Don't do anything
+}
+for (ushort i = 0x2f2; i <= 0x2f7; i++)
+{
+    cpu.HookOutPort(i, rearm);
+}
+
 cpu.Jump(0x0000, 0x7C00);
 
 string DecodeInstruction()
@@ -1376,4 +1445,34 @@ struct EquipmentList
             PrinterCount = printerCount
         };
     }
+}
+// https://en.wikipedia.org/wiki/INT_13H#INT_13h_AH=01h:_Get_Status_of_Last_Drive_Operation
+enum DriveOperationStatus : byte
+{
+    Success = 0x00,
+    InvalidCommand = 0x01,
+    CannotFindAddressMark = 0x02,
+    AttemptedWriteOnWriteProtectedDisk = 0x03,
+    SectorNotFound = 0x04,
+    ResetFailed = 0x05,
+    DiskChangeLineActive = 0x06,
+    DriveParameterActivityFailed = 0x07,
+    DMAOverrun = 0x08,
+    AttemptToDMAOver64kbBoundary = 0x09,
+    BadSectorDetected = 0x0A,
+    BadCylinderTrackDetected = 0x0B,
+    MediaTypeNotFound = 0x0C,
+    InvalidNumberOfSectors = 0x0D,
+    ControlDataAddressMarkDetected = 0x0E,
+    DMAOutOfRange = 0x0F,
+    CRC_ECCDataError = 0x10,
+    ECCCorrectedDataError = 0x11,
+    ControllerFailure = 0x20,
+    SeekFailure = 0x40,
+    DriveTimedOutAssumedNotReady = 0x80,
+    DriveNotReady = 0xAA,
+    UndefinedError = 0xBB,
+    WriteFault = 0xCC,
+    StatusError = 0xE0,
+    SenseOperationFailed = 0xFF,
 }
