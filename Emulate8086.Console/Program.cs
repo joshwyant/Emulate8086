@@ -1,4 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using Emulate8086;
@@ -93,10 +94,10 @@ var disks = new string[] {
 var hardDisks = new string[] {
     "/Users/josh/Downloads/PCDOS200-C400.img",
 };
-var selectedDisk = 2;
+var selectedDisk = 6;
 var selectedHardDisk = 0;
 
-var bootDrive = 0;
+var bootDrive = 0x80;
 
 var disk = disks[selectedDisk];
 var hardDisk = hardDisks[selectedHardDisk];
@@ -972,6 +973,15 @@ byte MapASCIIToScanCode(char c)
         case '/':
         case '?':
             return 0x35;
+        case '\n':
+        case '\r':
+            return 0x1C;
+        case '\b':
+            return 0x0E;
+        case '\t':
+            return 0x0F;
+        case ' ':
+            return 0x39;
         case '!':
         case '@':
         case '#':
@@ -986,21 +996,73 @@ byte MapASCIIToScanCode(char c)
             return 0;
     }
 }
+var concurrentKeyboardBuffer = new ConcurrentQueue<(char, byte)>();
+var keyboardWaiting = new ManualResetEvent(false);
+var keyboardTask = Task.Run(async () =>
+{
+    // For now let's only try it for redirected
+    if (!Console.IsInputRedirected) return;
+
+    while (true)
+    {
+        if (Console.IsInputRedirected)
+        {
+            var chars = Console.ReadLine();
+            if (chars == null) break;
+
+            foreach (var c in chars)
+            {
+                await Task.Delay(50);
+                var scancode = MapASCIIToScanCode((char)c);
+                concurrentKeyboardBuffer.Enqueue(((char)c, scancode));
+            }
+            await Task.Delay(50);
+            concurrentKeyboardBuffer.Enqueue(('\r', 0x1C));
+            keyboardWaiting.Set();
+        }
+        else
+        {
+            // var keyInfo = Console.ReadKey(true);
+            // MapConsoleKeyInfoToScanCode(keyInfo, out byte scancode, out byte ascii);
+            // concurrentKeyboardBuffer.Enqueue(((char)ascii, scancode));
+        }
+    }
+});
+var _ = Task.Run(() =>
+{
+    if (!Console.IsInputRedirected) return; // Only for redirected input for now
+
+    Thread.Sleep(2500);
+    var t = DateTime.Now;
+    var str = $"{t.Month}-{t.Day}-{t.Year}\r{t.Hour}:{t.Minute:D2}\r";
+    foreach (var c in str)
+    {
+        Thread.Sleep(100);
+        concurrentKeyboardBuffer.Enqueue((c, MapASCIIToScanCode(c)));
+    }
+});
+var keyboardBuffer = new Queue<(char, byte)>();
 cpu.HookInterrupt(0x16, cpu =>
 {
     switch (cpu.AH)
     {
         case 0x00:
-            if (Console.IsInputRedirected)
+            if (keyboardBuffer.Count > 0)
             {
-                var c = Console.Read();
-                if (c == -1)
-                {
-                    c = 0;
-                }
-                var scancode = MapASCIIToScanCode((char)c);
-                cpu.SetReg8(Register.AL, (byte)c);
+                keyboardBuffer.TryDequeue(out (char, byte) result);
+                var (ascii, scancode) = result;
+                cpu.SetReg8(Register.AL, (byte)ascii);
                 cpu.SetReg8(Register.AH, scancode);
+                keyboardWaiting.Reset();
+            }
+            else if (Console.IsInputRedirected)
+            {
+                keyboardWaiting.WaitOne();
+                concurrentKeyboardBuffer.TryDequeue(out (char, byte) result);
+                var (ascii, scancode) = result;
+                cpu.SetReg8(Register.AL, (byte)ascii);
+                cpu.SetReg8(Register.AH, scancode);
+                keyboardWaiting.Reset();
             }
             else
             {
@@ -1009,13 +1071,46 @@ cpu.HookInterrupt(0x16, cpu =>
                 cpu.SetReg8(Register.AL, ascii);
                 cpu.SetReg8(Register.AH, scancode);
             }
-            ReturnFlag(Flags.Carry, true, cpu);
+            ReturnFlag(Flags.Carry, false, cpu);
             break;
         case 0x01:
-            // https://stanislavs.org/helppc/int_16-1.html
-            cpu.SetReg16(Register.AX, 0); // No scan code available
-            ReturnFlag(Flags.Zero, true, cpu); // No key is pressed
-            break;
+            {
+                // https://stanislavs.org/helppc/int_16-1.html
+                char ascii = '\0';
+                byte scancode = 0;
+                var gotKey = false;
+                if (Console.IsInputRedirected)
+                {
+                    if (concurrentKeyboardBuffer.TryDequeue(out (char, byte) result))
+                    {
+                        (ascii, scancode) = result;
+                        keyboardBuffer.Enqueue(result);
+                        gotKey = true;
+                    }
+                }
+                else if (Console.KeyAvailable)
+                {
+                    var keyInfo = Console.ReadKey(true);
+                    MapConsoleKeyInfoToScanCode(keyInfo, out scancode, out byte asciibyte);
+                    ascii = (char)asciibyte;
+                    keyboardBuffer.Enqueue((ascii, scancode));
+                    gotKey = true;
+                }
+                if (gotKey)
+                {
+                    cpu.SetReg8(Register.AL, (byte)ascii);
+                    cpu.SetReg8(Register.AH, scancode);
+                    ReturnFlag(Flags.Zero, false, cpu);
+                }
+                else
+                {
+                    cpu.SetReg16(Register.AX, 0); // No scan code available
+                    ReturnFlag(Flags.Zero, true, cpu); // No key is pressed
+                }
+                ReturnFlag(Flags.Carry, false, cpu);
+
+                break;
+            }
         default:
             Warn(() => $"Int 16h unsupported function {cpu.AH:X2}h");
             if (Debugger.IsAttached)
@@ -1471,6 +1566,8 @@ while (!stop)
             break;
     }
 }
+await keyboardTask;
+
 struct EquipmentList
 {
     // http://vitaly_filatov.tripod.com/ng/asm/asm_001.9.html
