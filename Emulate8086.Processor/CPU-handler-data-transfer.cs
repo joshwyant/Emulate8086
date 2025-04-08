@@ -221,16 +221,13 @@ namespace Emulate8086.Processor
 
             if (!self.in_hooks.ContainsKey(port))
             {
-                self.SetReg(Register.AX, 0, self.insW);
+                self.LogWarning(() => $"Tried to receive from unset port {port:X2}h");
                 if (Debugger.IsAttached)
                 {
                     // Port not handled
                     Debugger.Break();
                 }
-                else
-                {
-                    self.LogWarning(() => $"Tried to receive from unset port {port:X2}h");
-                }
+                self.SetReg(Register.AX, 0, self.insW);
             }
             else
             {
@@ -292,14 +289,11 @@ namespace Emulate8086.Processor
             }
             else
             {
+                self.LogWarning(() => $"Tried to write to unset port {port:X}h");
                 if (Debugger.IsAttached)
                 {
                     // Write to non-hooked port
                     Debugger.Break();
-                }
-                else
-                {
-                    self.LogWarning(() => $"Tried to write to unset port {port:X}h");
                 }
             }
         }

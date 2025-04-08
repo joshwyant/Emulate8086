@@ -32,6 +32,7 @@ namespace Emulate8086.Processor
                     self.Memory.wordAt(self.csip_start + 4) == 0 &&
                     self.Memory.wordAt(self.csip_start + 6) == 0)
                 {
+                    self.LogError(() => $"{self.CS:X4}:{self.csip_start - self.CS * 16:X4} Caught executing zeros");
                     if (Debugger.IsAttached)
                     {
                         // We're executing all 0's
@@ -39,7 +40,6 @@ namespace Emulate8086.Processor
                     }
                     else
                     {
-                        self.LogError(() => $"{self.CS:X4}:{self.csip_start - self.CS * 16:X4} Caught executing zeros");
                         Environment.Exit(1);
                     }
                 }

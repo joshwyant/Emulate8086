@@ -444,15 +444,11 @@ namespace Emulate8086.Processor
                 }
                 else
                 {
+                    LogWarning(() => $"Undefined interrupt 0x{intType:X2} (AX: {AX:X4} BX: {BX:X4} CX: {CX:X4} DX: {CX:X4})");
                     if (Debugger.IsAttached)
                     {
                         // Undefined interrupt
                         Debugger.Break();
-                    }
-                    else
-                    {
-                        LogWarning(() => $"Undefined interrupt 0x{intType:X2} (AX: {AX:X4} BX: {BX:X4} CX: {CX:X4} DX: {CX:X4})");
-
                     }
                 }
 

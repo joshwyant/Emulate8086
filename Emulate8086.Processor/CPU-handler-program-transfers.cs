@@ -897,6 +897,8 @@ namespace Emulate8086.Processor
 
                 if (cs == 0 && ip == 0)
                 {
+                    self.LogError(() => $"Calling non-existent interrupt 0x{intType:X2}!");
+                    self.LogError(() => $"AX: {self.AX:X4} BX: {self.BX:X4} CX: {self.CX:X4} DX: {self.CX:X4}");
                     if (Debugger.IsAttached)
                     {
                         // Calling non-existent interrupt
@@ -904,8 +906,6 @@ namespace Emulate8086.Processor
                     }
                     else
                     {
-                        self.LogError(() => $"Calling non-existent interrupt 0x{intType:X2}!");
-                        self.LogError(() => $"AX: {self.AX:X4} BX: {self.BX:X4} CX: {self.CX:X4} DX: {self.CX:X4}");
                         System.Environment.Exit(1);
                     }
                 }

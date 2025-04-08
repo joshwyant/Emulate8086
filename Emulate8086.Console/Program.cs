@@ -6,7 +6,7 @@ using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
 
 bool prompting = false;
-var loglevel = 0;
+var loglevel = 4;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
 HashSet<int> break_addrs = [
@@ -378,17 +378,14 @@ cpu.HookInterrupt(0x13, cpu =>
             ReturnFlag(Flags.Carry, false, cpu);
             break;
         default:
+            Warn(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
             // throw new NotImplementedException();
             if (Debugger.IsAttached)
             {
                 // Int 13h disk services AH=??
                 Debugger.Break();
             }
-            else
-            {
-                Warn(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
-                ReturnFlag(Flags.Carry, false, cpu);
-            }
+            ReturnFlag(Flags.Carry, false, cpu);
             break;
     }
 });
@@ -799,16 +796,13 @@ cpu.HookInterrupt(0x10, cpu =>
                 break;
             }
         default:
+            Warn(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
             if (Debugger.IsAttached)
             {
                 // Int 10h video services AH=??
                 Debugger.Break();
             }
-            else
-            {
-                Warn(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
-                ReturnFlag(Flags.Carry, false, cpu);
-            }
+            ReturnFlag(Flags.Carry, false, cpu);
             break;
     }
 });
@@ -876,11 +870,11 @@ cpu.HookInterrupt(0x1A, (cpu) =>
             ReturnFlag(Flags.Carry, false, cpu);
             break;
         default:
+            Warn(() => $"Unimplemented int 1Ah ah={cpu.AH:X2}h");
             if (Debugger.IsAttached)
             {
                 Debugger.Break();
             }
-            Warn(() => $"Unimplemented int 1Ah ah={cpu.AH:X2}h");
             ReturnFlag(Flags.Carry, true, cpu);
             break;
     }
