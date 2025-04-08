@@ -68,9 +68,10 @@ Action<Func<string>> loggerWithColor(int minLevel, string name, ConsoleColor col
         if (loglevel < minLevel) return;
         var prev = Console.ForegroundColor;
         var prevbg = Console.BackgroundColor;
-        Console.ResetColor();
+
         Console.ForegroundColor = color;
-        logger(() => $"[{name}] " + expression());
+        logger(() => $"[EMU] [{name}] " + expression());
+
         Console.ForegroundColor = prev;
         Console.BackgroundColor = prevbg;
     };
