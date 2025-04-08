@@ -93,8 +93,10 @@ var disks = new string[] {
 var hardDisks = new string[] {
     "/Users/josh/Downloads/PCDOS200-C400.img",
 };
-var selectedDisk = 1;
+var selectedDisk = 2;
 var selectedHardDisk = 0;
+
+var bootDrive = 0;
 
 var disk = disks[selectedDisk];
 var hardDisk = hardDisks[selectedHardDisk];
@@ -112,16 +114,20 @@ int hardDrive = 0x80,
     hardDriveCylinders = (int)file.Length / 17 / 4 / 512;
 DriveOperationStatus hardDriveStatus = DriveOperationStatus.Success;
 
-
-var bootDrive = 0;
 bool hddEnabled = true;
 
 var memSize = 1024 * 1024;
 var mem = new Memory(memSize); // 1mb // 640KB
 const int vga_cols = 80;
-const int vga_rows = 25;
-const int vram_size = vga_cols + vga_rows * 2;
+const int vga_rows = 24; // 25
+const int vram_size = vga_cols * vga_rows * 2;
 var vram = new byte[vram_size];
+// Fill VRAM
+for (var i = 0; i < vga_rows * vga_cols; i++)
+{
+    vram[i * 2] = (byte)' ';
+    vram[i * 2 + 1] = 0x07; // Gray on black
+}
 
 mem.ClearMaps();
 const int vram_addr = 0xB8000;
@@ -139,17 +145,26 @@ mem.NewWindow(
     },
     (write_addr, value) =>
     {
+        Console.CursorVisible = false;
+        var (prevLeft, prevTop) = Console.GetCursorPosition();
+
+        Console.SetCursorPosition(write_addr % (vga_cols * 2) / 2, write_addr / (vga_cols * 2));
         if ((write_addr & 1) == 0)
         {
-            Console.SetCursorPosition(write_addr % (vga_cols * 2), write_addr / (vga_cols * 2));
+            var color = vram[write_addr + 1];
+            Console.BackgroundColor = (ConsoleColor)(color >> 4);
+            Console.ForegroundColor = (ConsoleColor)(color & 0xF);
+            Console.Write((char)(value == 7 ? 32 : 0));
         }
         else
         {
-            Console.ForegroundColor = (ConsoleColor)(value & 0xF);
             Console.BackgroundColor = (ConsoleColor)(value >> 4);
-            Console.Write((char)vram[write_addr]);
+            Console.ForegroundColor = (ConsoleColor)(value & 0xF);
+            Console.Write((char)vram[write_addr - 1]);
         }
         vram[write_addr] = value;
+        Console.SetCursorPosition(prevLeft, prevTop);
+        Console.CursorVisible = true;
     });
 // B800:xxxx - 1_0000:0000
 mem.NewWindow(
@@ -249,30 +264,122 @@ cpu.HookInterrupt(0x01, cpu =>
     }
 });
 // Timer
-var time_on = DateTime.Now;
 cpu.HookInterrupt(0x08, cpu =>
 {
-    var prevTicks = (uint)(cpu.Memory.wordAt(0x046C) | (cpu.Memory.wordAt(0x046E) << 16));
-    var elapsed = DateTime.Now.Subtract(time_on);
-    var ticks = (uint)(elapsed.TotalMilliseconds / 18.21);
-    var count = ticks % 1573040;
+    var count = (uint)(cpu.Memory.wordAt(0x046C) | (cpu.Memory.wordAt(0x046E) << 16));
+    count++;
+    if (count == 1573040)
+    {
+        // Past 24 hours
+        count = 0;
+        cpu.Memory[0x0470] = 1;
+    }
     Trace(() => $"Timer tick {count}");
     cpu.Memory.setWordAt(0x046C, (ushort)count);
     cpu.Memory.setWordAt(0x046E, (ushort)(count >> 16));
-    cpu.Memory[0x0470] = (byte)(elapsed.TotalDays > 1.0 ? 1 : 0);
     // chain to 0x1c
-    if (ticks > prevTicks)
-    {
-        var seg = cpu.Memory.wordAt(0, 0x1C * 4 + 2);
-        var off = cpu.Memory.wordAt(0, 0x1C * 4);
-        Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
-        cpu.Jump(seg, off);
-    }
+    var seg = cpu.Memory.wordAt(0, 0x1C * 4 + 2);
+    var off = cpu.Memory.wordAt(0, 0x1C * 4);
+    Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
+    cpu.Jump(seg, off);
 });
 cpu.HookInterrupt(0x10, cpu =>
 {
+    // https://en.wikipedia.org/wiki/INT_10H#List_of_supported_functions
+    var (prevLeft, prevTop) = Console.GetCursorPosition();
+    var prevAddr = (prevTop * vga_cols + prevLeft) * 2;
     switch (cpu.AH)
     {
+        case 0x02:
+            Console.SetCursorPosition(cpu.DL, cpu.DH);
+            break;
+        case 0x06:
+            {
+                var left = cpu.CL;
+                var top = cpu.CH;
+                var bottom = cpu.DH;
+                var right = cpu.DL;
+                var lines = cpu.AL;
+                var color = cpu.BH;
+                var bgcol = (ConsoleColor)((color >> 4) & 0xF);
+                var fgcol = (ConsoleColor)(color & 0xF);
+                // Scroll up window
+                if (lines == 0)
+                {
+                    // Clear the screen only
+                    Console.CursorVisible = false;
+                    for (var r = top; r < vga_rows && r <= bottom; r++)
+                    {
+                        Console.SetCursorPosition(left, r);
+                        for (var c = left; c < vga_cols && c <= right; c++)
+                        {
+                            vram[(r * vga_cols + c) * 2] = (byte)' ';
+                            vram[(r * vga_cols + c) * 2 + 1] = color;
+                            Console.BackgroundColor = bgcol;
+                            Console.ForegroundColor = fgcol;
+                            Console.Write(' ');
+                        }
+                    }
+                    Console.SetCursorPosition(left, top);
+                    Console.CursorVisible = true;
+                }
+                else
+                {
+                    Console.CursorVisible = false;
+                    for (var r = top; r < vga_rows && r <= bottom; r++)
+                    {
+                        Console.SetCursorPosition(left, r);
+                        var line_addr = r * vga_cols * 2;
+                        var old_line_addr = (r + lines) * vga_cols * 2;
+                        for (var c = left; c < vga_cols && c <= right; c++)
+                        {
+                            var col_addr = line_addr + c * 2;
+                            var newch = (byte)' ';
+                            var newcolor = color;
+                            var newfgcol = fgcol;
+                            var newbgcol = bgcol;
+                            if (r <= bottom - lines)
+                            {
+                                var old_col_addr = old_line_addr + c * 2;
+                                newch = vram[old_col_addr];
+                                newcolor = vram[old_col_addr + 2];
+                                newbgcol = (ConsoleColor)((newcolor >> 4) & 0xF);
+                                newfgcol = (ConsoleColor)(newcolor & 0xF);
+                            }
+                            vram[col_addr] = newch;
+                            vram[col_addr + 1] = newcolor;
+                            Console.BackgroundColor = newbgcol;
+                            Console.ForegroundColor = newfgcol;
+                            Console.Write(newch == 7 ? ' ' : (char)newch); // Don't beep by scrolling
+                        }
+                    }
+                    if (prevLeft >= left && prevLeft <= right && prevTop >= top && prevTop <= bottom)
+                    {
+                        Console.SetCursorPosition(prevLeft, prevTop - lines);
+                    }
+                    Console.CursorVisible = true;
+                }
+
+                break;
+            }
+        case 0x0A:
+            {
+                // Update character only, not color
+                var character = cpu.AL;
+                var page = cpu.BH;
+                var count = cpu.CX;
+
+                for (var i = 0; i < count; i++)
+                {
+                    var existingColor = vram[prevAddr + i * 2 + 1];
+                    Console.BackgroundColor = (ConsoleColor)(existingColor >> 4);
+                    Console.ForegroundColor = (ConsoleColor)(existingColor & 0xF);
+                    Console.Write((char)character);
+                    vram[prevAddr + i * 2] = character;
+                }
+
+                break;
+            }
         case 0x0E:
             {
                 // Teletype output
@@ -280,23 +387,21 @@ cpu.HookInterrupt(0x10, cpu =>
                 var page = cpu.BH;
                 var color = cpu.BL;
 
-                Console.ForegroundColor = (ConsoleColor)(color & 0xF);
-                Console.BackgroundColor = (ConsoleColor)(color >> 4);
-
-                Console.Write((char)character);
-                break;
-            }
-        case 0x0A:
-            {
-                var character = cpu.AL;
-                var page = cpu.BH;
-                var count = cpu.CX;
-
-                for (var i = 0; i < count; i++)
+                // Only do this for printable characters
+                if (character != 13 && character != 10)
                 {
-                    Console.Write((char)character);
+                    var attr = vram[prevAddr + 1];
+                    // attr = (byte)(attr & 0xF0 | color); Only in graphics mode
+
+                    vram[prevAddr] = character;
+                    vram[prevAddr + 1] = attr;
+
+                    Console.BackgroundColor = (ConsoleColor)(attr >> 4);
+                    Console.ForegroundColor = (ConsoleColor)(attr & 0xF);
                 }
 
+                // Write the character
+                Console.Write((char)character);
                 break;
             }
         default:
@@ -512,6 +617,12 @@ cpu.HookInterrupt(0x13, cpu =>
             cpu.SetReg8(Register.AL, ah15status);
             ReturnFlag(Flags.Carry, false, cpu);
             break;
+        case 0x41:
+            {
+                // Check extensions present
+                ReturnFlag(Flags.Carry, true, cpu); // No extensions present
+                break;
+            }
         default:
             Warn(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
             // throw new NotImplementedException();
@@ -976,24 +1087,38 @@ cpu.HookInterrupt(0x19, cpu =>
     boot(bootDrive);
 });
 boot(bootDrive);
+var time_diff = TimeSpan.FromSeconds(0);
 cpu.HookInterrupt(0x1A, (cpu) =>
 {
-    var t = DateTime.Now;
+    var t = DateTime.Now + time_diff;
     byte bcd(int i)
     {
         var tens = i / 10;
         var ones = i % 10;
         return (byte)(ones | (tens << 4));
     }
+    byte from_bcd(byte i)
+    {
+        var tens = i >> 4;
+        var ones = i & 0xF;
+        return (byte)(tens * 10 + ones);
+    }
     switch (cpu.AH)
     {
         case 0x00:
             // http://vitaly_filatov.tripod.com/ng/asm/asm_029.1.html
-            var elapsed = DateTime.Now.Subtract(time_on);
-            var count = (int)(elapsed.TotalSeconds * 1000 / 18.21) % 1573040;
+            var count = (uint)(cpu.Memory.wordAt(0x046C) | (cpu.Memory.wordAt(0x046E) << 16));
+            byte past24Hours = cpu.Memory[0x0470];
             cpu.SetReg16(Register.CX, (ushort)(count >> 16));
             cpu.SetReg16(Register.DX, (ushort)count);
-            cpu.SetReg8(Register.AL, (byte)(elapsed.TotalHours >= 24 ? 0 : 1));
+            cpu.SetReg8(Register.AL, past24Hours);
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+        case 0x01:
+            // Set system timer time counter
+            cpu.Memory.setWordAt(0x46C, cpu.DX);
+            cpu.Memory.setWordAt(0x46E, cpu.CX);
+            cpu.Memory[0x0470] = 0;
             ReturnFlag(Flags.Carry, false, cpu);
             break;
         case 0x02:
@@ -1008,6 +1133,18 @@ cpu.HookInterrupt(0x1A, (cpu) =>
             cpu.SetReg8(Register.DL, (byte)(t.IsDaylightSavingTime() ? 1 : 0));
             ReturnFlag(Flags.Carry, false, cpu);
             break;
+        case 0x03:
+            // Set real-time clock time
+            {
+                var hours = from_bcd(cpu.CH);
+                var minutes = from_bcd(cpu.CL);
+                var seconds = from_bcd(cpu.DH);
+                var daylight = cpu.DL;
+                var newTime = new DateTime(DateOnly.FromDateTime(t), new TimeOnly(hours, minutes, seconds));
+                time_diff = newTime - t;
+                ReturnFlag(Flags.Carry, false, cpu);
+                break;
+            }
         case 0x04:
             // http://vitaly_filatov.tripod.com/ng/asm/asm_029.5.html
             cpu.SetReg8(Register.CH, (byte)(t.Year < 2000 ? 0x19 : 0x20));
@@ -1015,6 +1152,17 @@ cpu.HookInterrupt(0x1A, (cpu) =>
             cpu.SetReg8(Register.DH, bcd(t.Month));
             cpu.SetReg8(Register.DL, bcd(t.Day));
             ReturnFlag(Flags.Carry, false, cpu);
+            break;
+        case 0x05:
+            // Set real-time clock date
+            {
+                var year = (cpu.CH == 0x20 ? 2000 : 1900) + from_bcd(cpu.CL);
+                var month = from_bcd(cpu.DH);
+                var day = from_bcd(cpu.DL);
+                var newDate = new DateTime(new DateOnly(year, month, day), TimeOnly.FromDateTime(t));
+                time_diff = newDate - t;
+                ReturnFlag(Flags.Carry, false, cpu);
+            }
             break;
         default:
             Warn(() => $"Unimplemented int 1Ah ah={cpu.AH:X2}h");
