@@ -191,11 +191,128 @@ Console.CancelKeyPress += (o, args) =>
     }
 };
 
+void ReturnFlag(Flags flag, bool set, CPU cpu)
+{
+    var flags_addr_on_stack = cpu.SS * 16 + cpu.SP + 4;
+    var original_flags = cpu.Memory.wordAt(flags_addr_on_stack);
+    var updated_flags = original_flags;
+    if (set)
+    {
+        updated_flags |= (ushort)flag;
+    }
+    else
+    {
+        updated_flags &= (ushort)~flag;
+    }
+    cpu.Memory.setWordAt(flags_addr_on_stack, updated_flags);
+}
+
+// Interrupts
+cpu.HookInterrupt(0x00, cpu =>
+{
+    // Divide by 0
+    Trace(() => "Divide by zero called");
+
+    // Does DOS multiplex this function?
+    // Just do what BOCHS does
+    if (cpu.AH == 0xC0)
+    {
+        cpu.SetReg8(Register.AH, 0);
+        cpu.SetSeg(Register.ES, 0x0040);
+        cpu.SetReg16(Register.BX, 0x000e);
+        ReturnFlag(Flags.Carry, false, cpu);
+    }
+});
+cpu.HookInterrupt(0x01, cpu =>
+{
+    // Debug
+    Debug(() => "Debug trap");
+    Error(() => "Int 01h, likely panic");
+    Environment.Exit(1);
+    if (Debugger.IsAttached)
+    {
+        Debugger.Break();
+    }
+});
+// Timer
+var time_on = DateTime.Now;
+cpu.HookInterrupt(0x08, cpu =>
+{
+    var prevTicks = (uint)(cpu.Memory.wordAt(0x046C) | (cpu.Memory.wordAt(0x046E) << 16));
+    var elapsed = DateTime.Now.Subtract(time_on);
+    var ticks = (uint)(elapsed.TotalMilliseconds / 18.21);
+    var count = ticks % 1573040;
+    Trace(() => $"Timer tick {count}");
+    cpu.Memory.setWordAt(0x046C, (ushort)count);
+    cpu.Memory.setWordAt(0x046E, (ushort)(count >> 16));
+    cpu.Memory[0x0470] = (byte)(elapsed.TotalDays > 1.0 ? 1 : 0);
+    // chain to 0x1c
+    if (ticks > prevTicks)
+    {
+        var seg = cpu.Memory.wordAt(0, 0x1C * 4 + 2);
+        var off = cpu.Memory.wordAt(0, 0x1C * 4);
+        Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
+        cpu.Jump(seg, off);
+    }
+});
+cpu.HookInterrupt(0x10, cpu =>
+{
+    switch (cpu.AH)
+    {
+        case 0x0E:
+            {
+                // Teletype output
+                var character = cpu.AL;
+                var page = cpu.BH;
+                var color = cpu.BL;
+
+                Console.ForegroundColor = (ConsoleColor)(color & 0xF);
+                Console.BackgroundColor = (ConsoleColor)(color >> 4);
+
+                Console.Write((char)character);
+                break;
+            }
+        case 0x0A:
+            {
+                var character = cpu.AL;
+                var page = cpu.BH;
+                var count = cpu.CX;
+
+                for (var i = 0; i < count; i++)
+                {
+                    Console.Write((char)character);
+                }
+
+                break;
+            }
+        default:
+            Warn(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
+            if (Debugger.IsAttached)
+            {
+                // Int 10h video services AH=??
+                Debugger.Break();
+            }
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+    }
+});
+var equipmentList = new EquipmentList();
+cpu.Memory.setWordAt(0x410, equipmentList.ToBitField());
+cpu.HookInterrupt(0x11, cpu =>
+{
+    cpu.SetReg16(Register.AX, equipmentList.ToBitField());
+});
+// http://vitaly_filatov.tripod.com/ng/asm/asm_001.10.html
+cpu.HookInterrupt(0x12, cpu =>
+{
+    // Get usable [conventional] memory size
+    var size = Math.Min(640, cpu.Memory.Size - 1);
+    cpu.SetReg16(Register.AX, (ushort)(size - 1)); // Bochs says 639
+});
 int CalculateLBA(ushort cylinder, byte head, int sector)
 {
     return (cylinder * heads + head) * sectorsPerTrack + (sector - 1);
 }
-
 bool ReadSectors(byte drive, ushort cylinder, byte head, byte sector, byte count, ushort segment, ushort offset, out byte status)
 {
     var baseLBA = CalculateLBA(cylinder, head, sector);
@@ -239,93 +356,6 @@ bool ReadSectors(byte drive, ushort cylinder, byte head, byte sector, byte count
 
     return true;
 }
-
-void ReturnFlag(Flags flag, bool set, CPU cpu)
-{
-    var flags_addr_on_stack = cpu.SS * 16 + cpu.SP + 4;
-    var original_flags = cpu.Memory.wordAt(flags_addr_on_stack);
-    var updated_flags = original_flags;
-    if (set)
-    {
-        updated_flags |= (ushort)flag;
-    }
-    else
-    {
-        updated_flags &= (ushort)~flag;
-    }
-    cpu.Memory.setWordAt(flags_addr_on_stack, updated_flags);
-}
-
-
-// Interrupts
-// LPT
-cpu.HookInterrupt(0x17, cpu =>
-{
-    var ah = cpu.GetReg8(Register.AH);
-    var al = cpu.GetReg8(Register.AL);
-    var dx = cpu.GetReg(Register.DX, true); // full 16-bit DX = printer port number (0 = LPT1)
-
-    void SetStatus(byte status, bool error = false)
-    {
-        cpu.SetReg8(Register.AH, status); // status in AH
-        ReturnFlag(Flags.Carry, error, cpu); // CF = error?
-    }
-
-    switch (ah)
-    {
-        case 0x00: // Initialize printer
-            Trace(() => $"[INT 17h] Init LPT{dx + 1}");
-            SetStatus(0x18); // ready, selected, ack
-            break;
-
-        case 0x01: // Send character
-            Trace(() => $"[INT 17h] LPT{dx + 1}: PRINT '{(char)al}' (0x{al:X2})");
-            SetStatus(0x18);
-            break;
-
-        case 0x02: // Get printer status
-            Trace(() => $"[INT 17h] Status for LPT{dx + 1}");
-            SetStatus(0x18);
-            break;
-
-        default:
-            Warn(() => $"[INT 17h] Unsupported AH={ah:X2}");
-            SetStatus(0x80, error: true); // error bit set
-            break;
-    }
-});
-cpu.HookInterrupt(0x00, cpu =>
-{
-    // Divide by 0
-    Trace(() => "Divide by zero called");
-
-    // Does DOS multiplex this function?
-    // Just do what BOCHS does
-    if (cpu.AH == 0xC0)
-    {
-        cpu.SetReg8(Register.AH, 0);
-        cpu.SetSeg(Register.ES, 0x0040);
-        cpu.SetReg16(Register.BX, 0x000e);
-        ReturnFlag(Flags.Carry, false, cpu);
-    }
-});
-cpu.HookInterrupt(0x01, cpu =>
-{
-    // Debug
-    Debug(() => "Debug trap");
-    Error(() => "Int 01h, likely panic");
-    Environment.Exit(1);
-    if (Debugger.IsAttached)
-    {
-        Debugger.Break();
-    }
-});
-var equipmentList = new EquipmentList();
-cpu.Memory.setWordAt(0x410, equipmentList.ToBitField());
-cpu.HookInterrupt(0x11, cpu =>
-{
-    cpu.SetReg16(Register.AX, equipmentList.ToBitField());
-});
 // https://en.wikipedia.org/wiki/INT_13H
 cpu.HookInterrupt(0x13, cpu =>
 {
@@ -389,12 +419,33 @@ cpu.HookInterrupt(0x13, cpu =>
             break;
     }
 });
-// http://vitaly_filatov.tripod.com/ng/asm/asm_001.10.html
-cpu.HookInterrupt(0x12, cpu =>
+cpu.HookInterrupt(0x14, cpu =>
 {
-    // Get usable [conventional] memory size
-    var size = Math.Min(640, cpu.Memory.Size - 1);
-    cpu.SetReg16(Register.AX, (ushort)(size - 1)); // Bochs says 639
+    switch (cpu.AH)
+    {
+        case 0x00: // Initialize serial port
+            Trace(() => $"[INT 14h] Init COM{cpu.DX + 1}: config=0x{cpu.AL:X2}");
+
+            cpu.SetReg8(Register.AH, 0x00); // No error
+            cpu.SetReg8(Register.AL, 0x03); // Line status: Transmitter ready, empty
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+
+        default:
+            Warn(() => $"[INT 14h] Unsupported function AH={cpu.AH:X2}");
+            if (Debugger.IsAttached)
+            {
+                Debugger.Break();
+            }
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
+    }
+});
+cpu.HookInterrupt(0x15, cpu =>
+{
+    // Advanced BIOS services?
+    Trace(() => $"Int 0x15 AH={cpu.AH} called");
+    ReturnFlag(Flags.Carry, true, cpu);
 });
 // https://stanislavs.org/helppc/scan_codes.html
 byte[] LetterScanCodes = [0x1e, 0x30, 0x2e, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18, 0x19, 0x10, 0x13, 0x1f, 0x14, 0x16, 0x2f, 0x11, 0x2D, 0x15, 0x2c];
@@ -719,12 +770,6 @@ byte MapASCIIToScanCode(char c)
             return 0;
     }
 }
-cpu.HookInterrupt(0x15, cpu =>
-{
-    // Advanced BIOS services?
-    Trace(() => $"Int 0x15 AH={cpu.AH} called");
-    ReturnFlag(Flags.Carry, true, cpu);
-});
 cpu.HookInterrupt(0x16, cpu =>
 {
     switch (cpu.AH)
@@ -765,70 +810,66 @@ cpu.HookInterrupt(0x16, cpu =>
             break;
     }
 });
-cpu.HookInterrupt(0x10, cpu =>
+// LPT
+cpu.HookInterrupt(0x17, cpu =>
 {
-    switch (cpu.AH)
+    var ah = cpu.GetReg8(Register.AH);
+    var al = cpu.GetReg8(Register.AL);
+    var dx = cpu.GetReg(Register.DX, true); // full 16-bit DX = printer port number (0 = LPT1)
+
+    void SetStatus(byte status, bool error = false)
     {
-        case 0x0E:
-            {
-                // Teletype output
-                var character = cpu.AL;
-                var page = cpu.BH;
-                var color = cpu.BL;
-
-                Console.ForegroundColor = (ConsoleColor)(color & 0xF);
-                Console.BackgroundColor = (ConsoleColor)(color >> 4);
-
-                Console.Write((char)character);
-                break;
-            }
-        case 0x0A:
-            {
-                var character = cpu.AL;
-                var page = cpu.BH;
-                var count = cpu.CX;
-
-                for (var i = 0; i < count; i++)
-                {
-                    Console.Write((char)character);
-                }
-
-                break;
-            }
-        default:
-            Warn(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
-            if (Debugger.IsAttached)
-            {
-                // Int 10h video services AH=??
-                Debugger.Break();
-            }
-            ReturnFlag(Flags.Carry, false, cpu);
-            break;
+        cpu.SetReg8(Register.AH, status); // status in AH
+        ReturnFlag(Flags.Carry, error, cpu); // CF = error?
     }
-});
-cpu.HookInterrupt(0x14, cpu =>
-{
-    switch (cpu.AH)
-    {
-        case 0x00: // Initialize serial port
-            Trace(() => $"[INT 14h] Init COM{cpu.DX + 1}: config=0x{cpu.AL:X2}");
 
-            cpu.SetReg8(Register.AH, 0x00); // No error
-            cpu.SetReg8(Register.AL, 0x03); // Line status: Transmitter ready, empty
-            ReturnFlag(Flags.Carry, false, cpu);
+    switch (ah)
+    {
+        case 0x00: // Initialize printer
+            Trace(() => $"[INT 17h] Init LPT{dx + 1}");
+            SetStatus(0x18); // ready, selected, ack
+            break;
+
+        case 0x01: // Send character
+            Trace(() => $"[INT 17h] LPT{dx + 1}: PRINT '{(char)al}' (0x{al:X2})");
+            SetStatus(0x18);
+            break;
+
+        case 0x02: // Get printer status
+            Trace(() => $"[INT 17h] Status for LPT{dx + 1}");
+            SetStatus(0x18);
             break;
 
         default:
-            Warn(() => $"[INT 14h] Unsupported function AH={cpu.AH:X2}");
-            if (Debugger.IsAttached)
-            {
-                Debugger.Break();
-            }
-            ReturnFlag(Flags.Carry, false, cpu);
+            Warn(() => $"[INT 17h] Unsupported AH={ah:X2}");
+            SetStatus(0x80, error: true); // error bit set
             break;
     }
 });
-var time_on = DateTime.Now;
+void boot()
+{
+    // Console.SetBufferSize(80, 25);
+    Console.BackgroundColor = ConsoleColor.Black;
+    Console.ForegroundColor = ConsoleColor.Gray;
+    Console.Clear();
+    // Console.WriteLine("No boot device");
+    var bootsect = new byte[512];
+    file.Seek(0, SeekOrigin.Begin);
+    file.Read(bootsect, 0, 512);
+    // Load the boot sector into memory.
+    for (var i = 0; i < 512; i++)
+    {
+        mem[0x7C00 + i] = bootsect[i];
+    }
+    // Set the drive number
+    cpu.SetReg8(Register.DL, (byte)drive);
+}
+cpu.HookInterrupt(0x19, cpu =>
+{
+    // Reboot
+    boot();
+});
+boot();
 cpu.HookInterrupt(0x1A, (cpu) =>
 {
     var t = DateTime.Now;
@@ -879,32 +920,6 @@ cpu.HookInterrupt(0x1A, (cpu) =>
             break;
     }
 });
-
-void boot()
-{
-    // Console.SetBufferSize(80, 25);
-    Console.BackgroundColor = ConsoleColor.Black;
-    Console.ForegroundColor = ConsoleColor.Gray;
-    Console.Clear();
-    // Console.WriteLine("No boot device");
-    var bootsect = new byte[512];
-    file.Seek(0, SeekOrigin.Begin);
-    file.Read(bootsect, 0, 512);
-    // Load the boot sector into memory.
-    for (var i = 0; i < 512; i++)
-    {
-        mem[0x7C00 + i] = bootsect[i];
-    }
-    // Set the drive number
-    cpu.SetReg8(Register.DL, (byte)drive);
-}
-
-cpu.HookInterrupt(0x19, cpu =>
-{
-    // Reboot
-    boot();
-});
-boot();
 
 void SetupSoftInterrupt(byte i)
 {
@@ -971,17 +986,17 @@ cpu.HookInPort(0x21, (cpu, port) =>
     return 0xFF; // Everything masked (safe default)
 });
 
+cpu.HookInPort(0x50, (cpu, port) =>
+{
+    Trace(() => $"Port 50h IN");
+    return 0xFF; // or 0x00 — whatever makes code happy
+});
+
 cpu.HookInPort(0x66, (cpu, port) =>
 {
     // A20?
     Trace(() => $"Port 66h IN");
     return 0xFF;
-});
-
-cpu.HookInPort(0x50, (cpu, port) =>
-{
-    Trace(() => $"Port 50h IN");
-    return 0xFF; // or 0x00 — whatever makes code happy
 });
 
 cpu.HookOutPort(0x20, (cpu, port, data) =>
@@ -1005,27 +1020,6 @@ cpu.HookOutPort(0x50, (cpu, port, data) =>
 });
 
 cpu.Jump(0x0000, 0x7C00);
-
-// Timer
-cpu.HookInterrupt(0x08, cpu =>
-{
-    var prevTicks = (uint)(cpu.Memory.wordAt(0x046C) | (cpu.Memory.wordAt(0x046E) << 16));
-    var elapsed = DateTime.Now.Subtract(time_on);
-    var ticks = (uint)(elapsed.TotalMilliseconds / 18.21);
-    var count = ticks % 1573040;
-    Trace(() => $"Timer tick {count}");
-    cpu.Memory.setWordAt(0x046C, (ushort)count);
-    cpu.Memory.setWordAt(0x046E, (ushort)(count >> 16));
-    cpu.Memory[0x0470] = (byte)(elapsed.TotalDays > 1.0 ? 1 : 0);
-    // chain to 0x1c
-    if (ticks > prevTicks)
-    {
-        var seg = cpu.Memory.wordAt(0, 0x1C * 4 + 2);
-        var off = cpu.Memory.wordAt(0, 0x1C * 4);
-        Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
-        cpu.Jump(seg, off);
-    }
-});
 
 string DecodeInstruction()
 {
