@@ -1,9 +1,11 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Emulate8086.Processor
 {
     public class Memory
     {
+        internal CPU? cpu;
         public Memory(int size)
         {
             contents = new byte[size];
@@ -62,11 +64,27 @@ namespace Emulate8086.Processor
 
         public byte[] RawBytes => contents;
 
+        private HashSet<int> BDAWritten = new HashSet<int>();
+        private HashSet<ushort> SegmentsWritten = new HashSet<ushort>();
+
         public byte this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                if ((index >= 0 && index < 0x500 || index >= 0xF0000) && !BDAWritten.Contains(index))
+                {
+                    Console.WriteLine($"{cpu?.CS:X4}:{cpu?.IP} R. bad BDA {index:X5}");
+                    // Trap uninitialized reads from the BIOS data area
+                    Debugger.Break();
+                    BDAWritten.Add(index);
+                }
+                if (!SegmentsWritten.Contains((ushort)(index >> 4)))
+                {
+                    Console.WriteLine($"{cpu?.CS:X4}:{cpu?.IP} Rd. bad sg. {index >> 4:X4}");
+                    SegmentsWritten.Add((ushort)(index >> 4));
+                    Debugger.Break();
+                }
                 if (index >= last.Start && index < last.End || UseRange(index))
                 {
                     return last.Read(index - last.Start);
@@ -81,6 +99,12 @@ namespace Emulate8086.Processor
                 {
                     last.Write(index - last.Start, value);
                 }
+                if (index >= 0 && index < 0x500 && !BDAWritten.Contains(index))
+                {
+                    BDAWritten.Add(index);
+                    Console.WriteLine($"{cpu?.CS:X4}:{cpu?.IP} Wrote to BDA {index:X5}h");
+                }
+                SegmentsWritten.Add((ushort)(index >> 4));
             }
         }
 

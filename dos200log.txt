@@ -1,0 +1,19 @@
+R. bad BDA F004C
+R. bad BDA F0044
+R. bad BDA F0020
+R. bad BDA F005C
+R. bad BDA F0050
+R. bad BDA F0048
+R. bad BDA F0068
+R. bad BDA F0058
+R. bad BDA F0040
+
+C>ECHO OFF
+Current date is Tue  1-01-1980
+Enter new date: 
+Current time is  0:00:08.18
+Enter new time: 
+R. bad BDA FFFF0
+Rd. bad sg. FFFF
+
+C:\>

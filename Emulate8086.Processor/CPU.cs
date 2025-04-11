@@ -9,6 +9,7 @@ namespace Emulate8086.Processor
         public CPU(Memory m)
         {
             memory = m;
+            memory.cpu = this;
             cs = 0;
             ip = 0;
         }

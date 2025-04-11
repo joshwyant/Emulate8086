@@ -3,13 +3,16 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using Emulate8086;
+using Emulate8086.Console;
 using Emulate8086.Meta.Intel8086;
 using Emulate8086.Processor;
+using SDL2;
 
 bool prompting = false;
 var loglevel = 4;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
+bool disableCursorOverwrite = true;
 HashSet<int> break_addrs = [
     //0x7C00,
     //0x0500,
@@ -58,30 +61,7 @@ HashSet<int> break_addrs = [
     0, // Execution wrapped around
 ];
 
-var errorLog = (Func<string> expression) => Console.Error.WriteLine(expression());
-var consoleLog = (Func<string> expression) => Console.WriteLine(expression());
-var noLog = (Func<string> expression) => { };
-Action<Func<string>> loggerWithColor(int minLevel, string name, ConsoleColor color, Action<Func<string>> logger)
-{
-    return expression =>
-    {
-        if (loglevel < minLevel) return;
-        var prev = Console.ForegroundColor;
-        var prevbg = Console.BackgroundColor;
-
-        Console.ForegroundColor = color;
-        logger(() => $"[EMU] [{name}] " + expression());
-
-        Console.ForegroundColor = prev;
-        Console.BackgroundColor = prevbg;
-    };
-}
-
-var Error = loggerWithColor(1, "ERROR", ConsoleColor.Red, errorLog);
-var Warn = loggerWithColor(2, "WARN", ConsoleColor.Yellow, consoleLog);
-var Info = loggerWithColor(3, "INFO", ConsoleColor.DarkGray, consoleLog);
-var Debug = loggerWithColor(4, "DEBUG", ConsoleColor.Blue, consoleLog);
-var Trace = loggerWithColor(5, "TRACE", ConsoleColor.Cyan, consoleLog);
+Logger log = new();
 
 var disks = new string[] {
     "/Users/josh/Downloads/002962_ms_dos_622/disk1.img",
@@ -98,7 +78,8 @@ var hardDisks = new string[] {
 var selectedDisk = 6;
 var selectedHardDisk = 0;
 
-var bootDrive = 0x80;
+var bootFromHardDrive = false;
+var bootDrive = bootFromHardDrive ? 0x80 : 0x00;
 
 var disk = disks[selectedDisk];
 var hardDisk = hardDisks[selectedHardDisk];
@@ -175,10 +156,10 @@ mem.NewWindow(
     offset: vram_end);
 
 var cpu = new CPU(mem);
-cpu.InfoLogger = Info;
-cpu.WarnLogger = Warn;
-cpu.ErrorLogger = Error;
-cpu.TraceLogger = Trace;
+cpu.InfoLogger = log.Info;
+cpu.WarnLogger = log.Warn;
+cpu.ErrorLogger = log.Error;
+cpu.TraceLogger = log.Trace;
 
 void MemoryWindow(ushort seg, ushort addr)
 {
@@ -242,7 +223,7 @@ void ReturnFlag(Flags flag, bool set, CPU cpu)
 cpu.HookInterrupt(0x00, cpu =>
 {
     // Divide by 0
-    Trace(() => "Divide by zero called");
+    log.Trace(() => "Divide by zero called");
 
     // Does DOS multiplex this function?
     // Just do what BOCHS does
@@ -257,8 +238,8 @@ cpu.HookInterrupt(0x00, cpu =>
 cpu.HookInterrupt(0x01, cpu =>
 {
     // Debug
-    Debug(() => "Debug trap");
-    Error(() => "Int 01h, likely panic");
+    log.Debug(() => "Debug trap");
+    log.Error(() => "Int 01h, likely panic");
     Environment.Exit(1);
     if (Debugger.IsAttached)
     {
@@ -276,26 +257,35 @@ cpu.HookInterrupt(0x08, cpu =>
         count = 0;
         cpu.Memory[0x0470] = 1;
     }
-    Trace(() => $"Timer tick {count}");
+    log.Trace(() => $"Timer tick {count}");
     cpu.Memory.setWordAt(0x046C, (ushort)count);
     cpu.Memory.setWordAt(0x046E, (ushort)(count >> 16));
     // chain to 0x1c
     var seg = cpu.Memory.wordAt(0, 0x1C * 4 + 2);
     var off = cpu.Memory.wordAt(0, 0x1C * 4);
-    Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
+    log.Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
     cpu.Jump(seg, off);
 });
+var display = new ConsoleDisplayDriver();
 cpu.HookInterrupt(0x10, cpu =>
 {
     // https://en.wikipedia.org/wiki/INT_10H#List_of_supported_functions
-    var (prevLeft, prevTop) = Console.GetCursorPosition();
+    var (prevLeft, prevTop) = display.GetCursorPosition();
     var prevAddr = (prevTop * vga_cols + prevLeft) * 2;
     switch (cpu.AH)
     {
         case 0x02:
-            Console.SetCursorPosition(cpu.DL, cpu.DH);
+            if (disableCursorOverwrite)
+            {
+                break;
+            }
+            display.SetCursorPosition(cpu.DL, cpu.DH);
             break;
         case 0x06:
+            if (disableCursorOverwrite)
+            {
+                break;
+            }
             {
                 var left = cpu.CL;
                 var top = cpu.CH;
@@ -303,34 +293,34 @@ cpu.HookInterrupt(0x10, cpu =>
                 var right = cpu.DL;
                 var lines = cpu.AL;
                 var color = cpu.BH;
-                var bgcol = (ConsoleColor)((color >> 4) & 0xF);
-                var fgcol = (ConsoleColor)(color & 0xF);
+                var bgcol = (color >> 4) & 0xF;
+                var fgcol = color & 0xF;
                 // Scroll up window
                 if (lines == 0)
                 {
                     // Clear the screen only
-                    Console.CursorVisible = false;
+                    display.CursorVisible = false;
                     for (var r = top; r < vga_rows && r <= bottom; r++)
                     {
-                        Console.SetCursorPosition(left, r);
+                        display.SetCursorPosition(left, r);
                         for (var c = left; c < vga_cols && c <= right; c++)
                         {
                             vram[(r * vga_cols + c) * 2] = (byte)' ';
                             vram[(r * vga_cols + c) * 2 + 1] = color;
-                            Console.BackgroundColor = bgcol;
-                            Console.ForegroundColor = fgcol;
-                            Console.Write(' ');
+                            display.BackgroundColor = bgcol;
+                            display.ForegroundColor = fgcol;
+                            display.Write(' ');
                         }
                     }
-                    Console.SetCursorPosition(left, top);
-                    Console.CursorVisible = true;
+                    display.SetCursorPosition(left, top);
+                    display.CursorVisible = true;
                 }
                 else
                 {
-                    Console.CursorVisible = false;
+                    display.CursorVisible = false;
                     for (var r = top; r < vga_rows && r <= bottom; r++)
                     {
-                        Console.SetCursorPosition(left, r);
+                        display.SetCursorPosition(left, r);
                         var line_addr = r * vga_cols * 2;
                         var old_line_addr = (r + lines) * vga_cols * 2;
                         for (var c = left; c < vga_cols && c <= right; c++)
@@ -345,21 +335,21 @@ cpu.HookInterrupt(0x10, cpu =>
                                 var old_col_addr = old_line_addr + c * 2;
                                 newch = vram[old_col_addr];
                                 newcolor = vram[old_col_addr + 2];
-                                newbgcol = (ConsoleColor)((newcolor >> 4) & 0xF);
-                                newfgcol = (ConsoleColor)(newcolor & 0xF);
+                                newbgcol = (newcolor >> 4) & 0xF;
+                                newfgcol = newcolor & 0xF;
                             }
                             vram[col_addr] = newch;
                             vram[col_addr + 1] = newcolor;
-                            Console.BackgroundColor = newbgcol;
-                            Console.ForegroundColor = newfgcol;
-                            Console.Write(newch == 7 ? ' ' : (char)newch); // Don't beep by scrolling
+                            display.BackgroundColor = newbgcol;
+                            display.ForegroundColor = newfgcol;
+                            display.Write(newch == 7 ? ' ' : (char)newch); // Don't beep by scrolling
                         }
                     }
                     if (prevLeft >= left && prevLeft <= right && prevTop >= top && prevTop <= bottom)
                     {
-                        Console.SetCursorPosition(prevLeft, prevTop - lines);
+                        display.SetCursorPosition(prevLeft, prevTop - lines);
                     }
-                    Console.CursorVisible = true;
+                    display.CursorVisible = true;
                 }
 
                 break;
@@ -374,9 +364,9 @@ cpu.HookInterrupt(0x10, cpu =>
                 for (var i = 0; i < count; i++)
                 {
                     var existingColor = vram[prevAddr + i * 2 + 1];
-                    Console.BackgroundColor = (ConsoleColor)(existingColor >> 4);
-                    Console.ForegroundColor = (ConsoleColor)(existingColor & 0xF);
-                    Console.Write((char)character);
+                    display.BackgroundColor = existingColor >> 4;
+                    display.ForegroundColor = existingColor & 0xF;
+                    display.Write((char)character);
                     vram[prevAddr + i * 2] = character;
                 }
 
@@ -398,16 +388,16 @@ cpu.HookInterrupt(0x10, cpu =>
                     vram[prevAddr] = character;
                     vram[prevAddr + 1] = attr;
 
-                    Console.BackgroundColor = (ConsoleColor)(attr >> 4);
-                    Console.ForegroundColor = (ConsoleColor)(attr & 0xF);
+                    display.BackgroundColor = attr >> 4;
+                    display.ForegroundColor = attr & 0xF;
                 }
 
                 // Write the character
-                Console.Write((char)character);
+                display.Write((char)character);
                 break;
             }
         default:
-            Warn(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
+            log.Warn(() => $"int 10h, ah={cpu.AH:X2}h video services called, not implemented.");
             if (Debugger.IsAttached)
             {
                 // Int 10h video services AH=??
@@ -481,7 +471,7 @@ bool ReadSectors(Stream file, int heads, int sectorsPerTrack, byte drive, ushort
     }
     catch (Exception e)
     {
-        Error(() => e.Message);
+        log.Error(() => e.Message);
         status = DriveOperationStatus.UndefinedError;
         return false;
     }
@@ -578,7 +568,7 @@ cpu.HookInterrupt(0x13, cpu =>
                 return string.Join(' ', Enumerable.Range(0, c).Select(i => $"{cpu.Memory[cpu.ES * 16 + cpu.BX + i]:X2}"));
             }
             int num = 16;
-            Trace(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2} \"{asciis(num)}\"... [{bytes(num)}])");
+            log.Trace(() => $"Loading {cpu.AL} sectors to {cpu.ES:X4}:{cpu.BX:X4} (cx={cpu.CX:X2} dx={cpu.DX:X2} \"{asciis(num)}\"... [{bytes(num)}])");
             cpu.SetReg16(Register.AX, (ushort)(((byte)status << 8) | cpu.AL));
 
             ReturnFlag(Flags.Carry, !success, cpu);
@@ -626,7 +616,7 @@ cpu.HookInterrupt(0x13, cpu =>
                 break;
             }
         default:
-            Warn(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
+            log.Warn(() => $"int 13h, ah={cpu.AH:X2}h disk services called, not implemented.");
             // throw new NotImplementedException();
             if (Debugger.IsAttached)
             {
@@ -642,7 +632,7 @@ cpu.HookInterrupt(0x14, cpu =>
     switch (cpu.AH)
     {
         case 0x00: // Initialize serial port
-            Trace(() => $"[INT 14h] Init COM{cpu.DX + 1}: config=0x{cpu.AL:X2}");
+            log.Trace(() => $"[INT 14h] Init COM{cpu.DX + 1}: config=0x{cpu.AL:X2}");
 
             cpu.SetReg8(Register.AH, 0x00); // No error
             cpu.SetReg8(Register.AL, 0x03); // Line status: Transmitter ready, empty
@@ -650,7 +640,7 @@ cpu.HookInterrupt(0x14, cpu =>
             break;
 
         default:
-            Warn(() => $"[INT 14h] Unsupported function AH={cpu.AH:X2}");
+            log.Warn(() => $"[INT 14h] Unsupported function AH={cpu.AH:X2}");
             if (Debugger.IsAttached)
             {
                 Debugger.Break();
@@ -662,463 +652,34 @@ cpu.HookInterrupt(0x14, cpu =>
 cpu.HookInterrupt(0x15, cpu =>
 {
     // Advanced BIOS services?
-    Trace(() => $"Int 0x15 AH={cpu.AH} called");
+    log.Trace(() => $"Int 0x15 AH={cpu.AH} called");
     ReturnFlag(Flags.Carry, true, cpu);
+
+    // http://vitaly_filatov.tripod.com/ng/asm/asm_026.19.html
+
 });
-// https://stanislavs.org/helppc/scan_codes.html
-byte[] LetterScanCodes = [0x1e, 0x30, 0x2e, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18, 0x19, 0x10, 0x13, 0x1f, 0x14, 0x16, 0x2f, 0x11, 0x2D, 0x15, 0x2c];
-byte[] FunctionScanCodes = [0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x85, 0x86];
-void MapConsoleKeyInfoToScanCode(ConsoleKeyInfo info, out byte scancode, out byte ascii)
-{
-    scancode = 0;
-    ascii = 0;
-    if (info.Key >= ConsoleKey.A && info.Key <= ConsoleKey.Z)
-    {
-        var i = info.Key - ConsoleKey.A;
-        scancode = LetterScanCodes[i];
-        if (info.Modifiers.HasFlag(ConsoleModifiers.Control))
-        {
-            ascii = (byte)(1 + i);
-        }
-        else if (info.Modifiers.HasFlag(ConsoleModifiers.Alt))
-        {
-            ascii = 0;
-        }
-        else if (info.Modifiers.HasFlag(ConsoleModifiers.Shift))
-        {
-            ascii = (byte)('A' + i);
-        }
-        else
-        {
-            ascii = (byte)('a' + i);
-        }
-    }
-    else if (info.Key >= ConsoleKey.D0 && info.Key <= ConsoleKey.D9)
-    {
-        var index = info.Key == ConsoleKey.D0 ? 0 : 1 + (info.Key - ConsoleKey.D1);
-        if (info.Modifiers.HasFlag(ConsoleModifiers.Alt))
-        {
-            scancode = (byte)(info.Key == ConsoleKey.D0
-                ? 0x81 : 0x78 + (info.Key - ConsoleKey.D1));
-        }
-        else if (info.Modifiers == ConsoleModifiers.Control)
-        {
-            scancode = info.Key switch
-            {
-                ConsoleKey.D2 => 0x03,
-                ConsoleKey.D6 => 0x07,
-                _ => 0
-            };
-            ascii = info.Key switch
-            {
-                ConsoleKey.D2 => 0x00,
-                ConsoleKey.D6 => 0x1E,
-                _ => 0
-            };
-        }
-        else
-        {
-            scancode = (byte)(info.Key == ConsoleKey.D0
-                ? 0x0B : 0x02 + (info.Key - ConsoleKey.D1));
-
-            if (info.Modifiers.HasFlag(ConsoleModifiers.Shift))
-            {
-                ascii = (byte)"!@#$%^&*()"[index];
-            }
-            else
-            {
-                ascii = (byte)('0' + index);
-            }
-        }
-    }
-    else if (info.Key >= ConsoleKey.F1 && info.Key <= ConsoleKey.F10)
-    {
-        var index = (int)(info.Key - ConsoleKey.F1);
-        var start = 0x3B;
-        if (info.Modifiers.HasFlag(ConsoleModifiers.Alt))
-        {
-            start = 0x68;
-        }
-        else if (info.Modifiers.HasFlag(ConsoleModifiers.Control))
-        {
-            start = 0x5E;
-        }
-        else if (info.Modifiers.HasFlag(ConsoleModifiers.Shift))
-        {
-            start = 0x54;
-        }
-        scancode = (byte)(start + index);
-    }
-    else
-    {
-        if (info.Modifiers.HasFlag(ConsoleModifiers.Alt))
-        {
-            scancode = info.Key switch
-            {
-                ConsoleKey.F11 => 0x8B,
-                ConsoleKey.F12 => 0x8C,
-                ConsoleKey.Backspace => 0x0E,
-                ConsoleKey.Delete => 0xA3,
-                ConsoleKey.DownArrow => 0xA0,
-                ConsoleKey.End => 0x9F,
-                ConsoleKey.Enter => 0xA6,
-                ConsoleKey.Escape => 0x01,
-                ConsoleKey.Home => 0x97,
-                ConsoleKey.Insert => 0xA2,
-                ConsoleKey.NumPad5 => 0,
-                ConsoleKey.Multiply => 0x37,
-                ConsoleKey.Subtract => 0x4A,
-                ConsoleKey.Add => 0x4E,
-                ConsoleKey.Divide => 0xA4,
-                ConsoleKey.LeftArrow => 0x9B,
-                ConsoleKey.PageDown => 0xA1,
-                ConsoleKey.PageUp => 0x99,
-                ConsoleKey.PrintScreen => 0,
-                ConsoleKey.RightArrow => 0x9D,
-                ConsoleKey.Spacebar => 0x39,
-                ConsoleKey.Tab => 0xA5,
-                ConsoleKey.UpArrow => 0x98,
-                _ => (byte)info.Key
-            };
-            ascii = info.Key switch
-            {
-                ConsoleKey.Spacebar => 0x20,
-                _ => 0
-            };
-        }
-        else if (info.Modifiers.HasFlag(ConsoleModifiers.Control))
-        {
-            scancode = info.Key switch
-            {
-                ConsoleKey.F11 => 0x89,
-                ConsoleKey.F12 => 0x8A,
-                ConsoleKey.Backspace => 0x0E,
-                ConsoleKey.Delete => 0x93,
-                ConsoleKey.DownArrow => 0x91,
-                ConsoleKey.End => 0x75,
-                ConsoleKey.Enter => 0x1C,
-                ConsoleKey.Escape => 0x01,
-                ConsoleKey.Home => 0x77,
-                ConsoleKey.Insert => 0x92,
-                ConsoleKey.NumPad5 => 0x8F,
-                ConsoleKey.Multiply => 0x96,
-                ConsoleKey.Subtract => 0x8E,
-                ConsoleKey.Add => 0,
-                ConsoleKey.Divide => 0x95,
-                ConsoleKey.LeftArrow => 0x73,
-                ConsoleKey.PageDown => 0x76,
-                ConsoleKey.PageUp => 0x84,
-                ConsoleKey.PrintScreen => 0x72,
-                ConsoleKey.RightArrow => 0x74,
-                ConsoleKey.Spacebar => 0x39,
-                ConsoleKey.Tab => 0x94,
-                ConsoleKey.UpArrow => 0x8D,
-                _ => (byte)info.Key
-            };
-            ascii = info.Key switch
-            {
-                ConsoleKey.Backspace => 0x7F,
-                ConsoleKey.Enter => 0x0A,
-                ConsoleKey.Escape => 0x1B,
-                ConsoleKey.Spacebar => 0x20,
-                _ => 0
-            };
-        }
-        else
-        {
-            switch (info.Key)
-            {
-                case ConsoleKey.F11:
-                    scancode = (byte)(info.Modifiers.HasFlag(ConsoleModifiers.Shift)
-                        ? 0x87 : 0x85);
-                    break;
-                case ConsoleKey.F12:
-                    scancode = (byte)(info.Modifiers.HasFlag(ConsoleModifiers.Shift)
-                        ? 0x88 : 0x86);
-                    break;
-                case ConsoleKey.NumPad5:
-                    scancode = (byte)(info.Modifiers.HasFlag(ConsoleModifiers.Shift)
-                        ? 0x4C : 0);
-                    break;
-                case ConsoleKey.Multiply:
-                    scancode = (byte)(info.Modifiers.HasFlag(ConsoleModifiers.Shift)
-                        ? 0 : 0x37);
-                    ascii = 0x2A;
-                    break;
-                default:
-                    scancode = info.Key switch
-                    {
-                        ConsoleKey.Backspace => 0x0E,
-                        ConsoleKey.Delete => 0x53,
-                        ConsoleKey.DownArrow => 0x50,
-                        ConsoleKey.End => 0x4F,
-                        ConsoleKey.Enter => 0x1C,
-                        ConsoleKey.Escape => 0x01,
-                        ConsoleKey.Home => 0x47,
-                        ConsoleKey.Insert => 0x52,
-                        ConsoleKey.Subtract => 0x4A,
-                        ConsoleKey.Add => 0x4E,
-                        ConsoleKey.Divide => 0x35,
-                        ConsoleKey.LeftArrow => 0x4B,
-                        ConsoleKey.PageDown => 0x51,
-                        ConsoleKey.PageUp => 0x49,
-                        ConsoleKey.RightArrow => 0x4D,
-                        ConsoleKey.Spacebar => 0x39,
-                        ConsoleKey.Tab => 0x0F,
-                        ConsoleKey.UpArrow => 0x48,
-                        _ => (byte)info.Key
-                    };
-                    if (info.Modifiers.HasFlag(ConsoleModifiers.Shift))
-                    {
-                        ascii = info.Key switch
-                        {
-                            ConsoleKey.Backspace => 0x08,
-                            ConsoleKey.Delete => 0x2E,
-                            ConsoleKey.DownArrow => 0x32,
-                            ConsoleKey.End => 0x31,
-                            ConsoleKey.Enter => 0x0D,
-                            ConsoleKey.Escape => 0x1B,
-                            ConsoleKey.Home => 0x37,
-                            ConsoleKey.Insert => 0x30,
-                            ConsoleKey.NumPad5 => 0x35,
-                            ConsoleKey.Multiply => 0,
-                            ConsoleKey.Subtract => 0x2D,
-                            ConsoleKey.Add => 0x2B,
-                            ConsoleKey.Divide => 0x2F,
-                            ConsoleKey.LeftArrow => 0x34,
-                            ConsoleKey.PageDown => 0x33,
-                            ConsoleKey.PageUp => 0x39,
-                            ConsoleKey.PrintScreen => 0,
-                            ConsoleKey.RightArrow => 0x36,
-                            ConsoleKey.Spacebar => 0x20,
-                            ConsoleKey.Tab => 0x00,
-                            ConsoleKey.UpArrow => 0x38,
-                            _ => (byte)(info.KeyChar > 255 ? 0 : info.KeyChar)
-                        };
-                    }
-                    else
-                    {
-                        ascii = info.Key switch
-                        {
-                            ConsoleKey.Backspace => 0x08,
-                            ConsoleKey.Delete => 0,
-                            ConsoleKey.DownArrow => 0,
-                            ConsoleKey.End => 0,
-                            ConsoleKey.Enter => 0x0D,
-                            ConsoleKey.Escape => 0x1B,
-                            ConsoleKey.Home => 0,
-                            ConsoleKey.Insert => 0,
-                            ConsoleKey.NumPad5 => 0,
-                            ConsoleKey.Multiply => 0x2A,
-                            ConsoleKey.Subtract => 0x2D,
-                            ConsoleKey.Add => 0x2B,
-                            ConsoleKey.Divide => 0x2F,
-                            ConsoleKey.LeftArrow => 0,
-                            ConsoleKey.PageDown => 0,
-                            ConsoleKey.PageUp => 0,
-                            ConsoleKey.PrintScreen => 0,
-                            ConsoleKey.RightArrow => 0,
-                            ConsoleKey.Spacebar => 0x20,
-                            ConsoleKey.Tab => 0x09,
-                            ConsoleKey.UpArrow => 0,
-                            _ => (byte)(info.KeyChar > 255 ? 0 : info.KeyChar)
-                        };
-                    }
-                    break;
-            }
-        }
-    }
-    if (ascii == 0 && info.KeyChar != '\0' && !char.IsControl(info.KeyChar) && info.KeyChar <= 127)
-    {
-        ascii = (byte)info.KeyChar;
-    }
-}
-byte MapASCIIToScanCode(char c)
-{
-    c = char.ToUpperInvariant(c);
-    if (c >= 'A' && c <= 'Z')
-    {
-        return LetterScanCodes[c - 'A'];
-    }
-    if (c >= '0' && c <= '9')
-    {
-        return (byte)(c == '0' ? 0x30 : 0x31 + (c - '1'));
-    }
-    switch (c)
-    {
-        case '-':
-        case '_':
-            return 0x0C;
-        case '=':
-        case '+':
-            return 0x0D;
-        case '[':
-        case '{':
-            return 0x1A;
-        case ']':
-        case '}':
-            return 0x1B;
-        case ';':
-        case ':':
-            return 0x27;
-        case '\'':
-        case '"':
-            return 0x28;
-        case '`':
-        case '~':
-            return 0x29;
-        case '\\':
-        case '|':
-            return 0x2B;
-        case ',':
-        case '<':
-            return 0x33;
-        case '.':
-        case '>':
-            return 0x34;
-        case '/':
-        case '?':
-            return 0x35;
-        case '\n':
-        case '\r':
-            return 0x1C;
-        case '\b':
-            return 0x0E;
-        case '\t':
-            return 0x0F;
-        case ' ':
-            return 0x39;
-        case '!':
-        case '@':
-        case '#':
-        case '$':
-        case '%':
-        case '&':
-        case '*':
-        case '(':
-        case ')':
-            return (byte)(0x02 + "!@#$%^&*()".IndexOf(c));
-        default:
-            return 0;
-    }
-}
-var concurrentKeyboardBuffer = new ConcurrentQueue<(char, byte)>();
-var keyboardWaiting = new ManualResetEvent(false);
-var keyboardTask = Task.Run(async () =>
-{
-    // For now let's only try it for redirected
-    if (!Console.IsInputRedirected) return;
-
-    while (true)
-    {
-        if (Console.IsInputRedirected)
-        {
-            var chars = Console.ReadLine();
-            if (chars == null) break;
-
-            foreach (var c in chars)
-            {
-                await Task.Delay(50);
-                var scancode = MapASCIIToScanCode((char)c);
-                concurrentKeyboardBuffer.Enqueue(((char)c, scancode));
-            }
-            await Task.Delay(50);
-            concurrentKeyboardBuffer.Enqueue(('\r', 0x1C));
-            keyboardWaiting.Set();
-        }
-        else
-        {
-            // var keyInfo = Console.ReadKey(true);
-            // MapConsoleKeyInfoToScanCode(keyInfo, out byte scancode, out byte ascii);
-            // concurrentKeyboardBuffer.Enqueue(((char)ascii, scancode));
-        }
-    }
-});
-var _ = Task.Run(() =>
-{
-    if (!Console.IsInputRedirected) return; // Only for redirected input for now
-
-    Thread.Sleep(2500);
-    var t = DateTime.Now;
-    var str = $"{t.Month}-{t.Day}-{t.Year}\r{t.Hour}:{t.Minute:D2}\r";
-    foreach (var c in str)
-    {
-        Thread.Sleep(100);
-        concurrentKeyboardBuffer.Enqueue((c, MapASCIIToScanCode(c)));
-    }
-});
-var keyboardBuffer = new Queue<(char, byte)>();
+var kb = new ConsoleKeyboardDriver();
 cpu.HookInterrupt(0x16, cpu =>
 {
+    char ascii;
+    byte scancode;
     switch (cpu.AH)
     {
         case 0x00:
-            if (keyboardBuffer.Count > 0)
-            {
-                keyboardBuffer.TryDequeue(out (char, byte) result);
-                var (ascii, scancode) = result;
-                cpu.SetReg8(Register.AL, (byte)ascii);
-                cpu.SetReg8(Register.AH, scancode);
-                keyboardWaiting.Reset();
-            }
-            else if (Console.IsInputRedirected)
-            {
-                keyboardWaiting.WaitOne();
-                concurrentKeyboardBuffer.TryDequeue(out (char, byte) result);
-                var (ascii, scancode) = result;
-                cpu.SetReg8(Register.AL, (byte)ascii);
-                cpu.SetReg8(Register.AH, scancode);
-                keyboardWaiting.Reset();
-            }
-            else
-            {
-                var keyInfo = Console.ReadKey(true);
-                MapConsoleKeyInfoToScanCode(keyInfo, out byte scancode, out byte ascii);
-                cpu.SetReg8(Register.AL, ascii);
-                cpu.SetReg8(Register.AH, scancode);
-            }
+            (ascii, scancode) = kb.WaitForKey();
+            cpu.SetReg8(Register.AL, (byte)ascii);
+            cpu.SetReg8(Register.AH, scancode);
             ReturnFlag(Flags.Carry, false, cpu);
             break;
         case 0x01:
-            {
-                // https://stanislavs.org/helppc/int_16-1.html
-                char ascii = '\0';
-                byte scancode = 0;
-                var gotKey = false;
-                if (Console.IsInputRedirected)
-                {
-                    if (concurrentKeyboardBuffer.TryDequeue(out (char, byte) result))
-                    {
-                        (ascii, scancode) = result;
-                        keyboardBuffer.Enqueue(result);
-                        gotKey = true;
-                    }
-                }
-                else if (Console.KeyAvailable)
-                {
-                    var keyInfo = Console.ReadKey(true);
-                    MapConsoleKeyInfoToScanCode(keyInfo, out scancode, out byte asciibyte);
-                    ascii = (char)asciibyte;
-                    keyboardBuffer.Enqueue((ascii, scancode));
-                    gotKey = true;
-                }
-                if (gotKey)
-                {
-                    cpu.SetReg8(Register.AL, (byte)ascii);
-                    cpu.SetReg8(Register.AH, scancode);
-                    ReturnFlag(Flags.Zero, false, cpu);
-                }
-                else
-                {
-                    cpu.SetReg16(Register.AX, 0); // No scan code available
-                    ReturnFlag(Flags.Zero, true, cpu); // No key is pressed
-                }
-                ReturnFlag(Flags.Carry, false, cpu);
-
-                break;
-            }
+            bool keyAvailable = kb.CheckForKey(out ascii, out scancode);
+            cpu.SetReg8(Register.AL, (byte)ascii);
+            cpu.SetReg8(Register.AH, scancode);
+            ReturnFlag(Flags.Zero, !keyAvailable, cpu);
+            ReturnFlag(Flags.Carry, false, cpu);
+            break;
         default:
-            Warn(() => $"Int 16h unsupported function {cpu.AH:X2}h");
+            log.Warn(() => $"Int 16h unsupported function {cpu.AH:X2}h");
             if (Debugger.IsAttached)
             {
                 Debugger.Break();
@@ -1143,22 +704,22 @@ cpu.HookInterrupt(0x17, cpu =>
     switch (ah)
     {
         case 0x00: // Initialize printer
-            Trace(() => $"[INT 17h] Init LPT{dx + 1}");
+            log.Trace(() => $"[INT 17h] Init LPT{dx + 1}");
             SetStatus(0x18); // ready, selected, ack
             break;
 
         case 0x01: // Send character
-            Trace(() => $"[INT 17h] LPT{dx + 1}: PRINT '{(char)al}' (0x{al:X2})");
+            log.Trace(() => $"[INT 17h] LPT{dx + 1}: PRINT '{(char)al}' (0x{al:X2})");
             SetStatus(0x18);
             break;
 
         case 0x02: // Get printer status
-            Trace(() => $"[INT 17h] Status for LPT{dx + 1}");
+            log.Trace(() => $"[INT 17h] Status for LPT{dx + 1}");
             SetStatus(0x18);
             break;
 
         default:
-            Warn(() => $"[INT 17h] Unsupported AH={ah:X2}");
+            log.Warn(() => $"[INT 17h] Unsupported AH={ah:X2}");
             SetStatus(0x80, error: true); // error bit set
             break;
     }
@@ -1192,6 +753,10 @@ cpu.HookInterrupt(0x19, cpu =>
 });
 
 var time_diff = TimeSpan.FromSeconds(0);
+// Initialize BDA structs
+cpu.Memory.setWordAt(0x46C, 0); // Tick count low
+cpu.Memory.setWordAt(0x46E, 0); // Tick count high
+cpu.Memory[0x0470] = 0; // 24h rollover flag
 cpu.HookInterrupt(0x1A, (cpu) =>
 {
     var t = DateTime.Now + time_diff;
@@ -1269,7 +834,7 @@ cpu.HookInterrupt(0x1A, (cpu) =>
             }
             break;
         default:
-            Warn(() => $"Unimplemented int 1Ah ah={cpu.AH:X2}h");
+            log.Warn(() => $"Unimplemented int 1Ah ah={cpu.AH:X2}h");
             if (Debugger.IsAttached)
             {
                 Debugger.Break();
@@ -1323,7 +888,7 @@ cpu.Memory[dptPtr + 2] = 37;
 // bSectSize (0=128, 1=256, 2=512, 3=1024)
 cpu.Memory[dptPtr + 3] = 2;
 // bLastTrack EOT (last sector on track)
-cpu.Memory[dptPtr + 4] = 18;
+cpu.Memory[dptPtr + 4] = (byte)sectorsPerTrack;
 // bGapLen
 cpu.Memory[dptPtr + 5] = 27;
 // bDTL Data Transfer Length max when length not set
@@ -1340,27 +905,27 @@ cpu.Memory[dptPtr + 10] = 8;
 cpu.HookInPort(0x21, (cpu, port) =>
 {
     // LPT/Printer
-    Trace(() => $"LPT IN 0x21");
+    log.Trace(() => $"LPT IN 0x21");
     return 0xFF; // Everything masked (safe default)
 });
 
 cpu.HookInPort(0x50, (cpu, port) =>
 {
-    Trace(() => $"Port 50h IN");
+    log.Trace(() => $"Port 50h IN");
     return 0xFF; // or 0x00 — whatever makes code happy
 });
 
 cpu.HookInPort(0x66, (cpu, port) =>
 {
     // A20?
-    Trace(() => $"Port 66h IN");
+    log.Trace(() => $"Port 66h IN");
     return 0xFF;
 });
 
 cpu.HookOutPort(0x20, (cpu, port, data) =>
 {
     // EOI or command to PIC
-    Trace(() => $"[I/O] PIC/EOI OUT 0x20, AL={data:X2}");
+    log.Trace(() => $"[I/O] PIC/EOI OUT 0x20, AL={data:X2}");
 
 });
 
@@ -1373,7 +938,7 @@ cpu.HookOutPort(0x20, (cpu, port, data) =>
 
 cpu.HookOutPort(0x50, (cpu, port, data) =>
 {
-    Trace(() => $"OUT 0x50, AL={data:X2}");
+    log.Trace(() => $"OUT 0x50, AL={data:X2}");
 
 });
 
@@ -1411,8 +976,13 @@ var nextInstruction = DecodeInstruction();
 var last_tick = DateTime.Now;
 
 boot(bootDrive);
+var clock_speed_mhz = 4.77;
+var cycle_duration = TimeSpan.FromSeconds(1.0 / (clock_speed_mhz * 1000000.0));
+var instant = DateTime.Now;
 while (!stop)
 {
+    while (DateTime.Now - instant < cycle_duration) ;
+    instant += cycle_duration;
     if (cpu.CS * 16 + cpu.IP == 0)
     {
         Environment.Exit(1);
@@ -1457,13 +1027,13 @@ while (!stop)
                 {
                     if (instructions_skipped != 0)
                     {
-                        Trace(() => $"Repeated {instructions_skipped} instructions");
+                        log.Trace(() => $"Repeated {instructions_skipped} instructions");
                         instructions_skipped = 0;
                         instruction_gap = 1;
                     }
                     nextInstruction = DecodeInstruction();
-                    //Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} a:{cpu.AX:X4} b:{cpu.BX:X4} c:{cpu.CX:X4} d:{cpu.DX:X4} s:{cpu.SI:X4} d:{cpu.DI:X4} {cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
-                    Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
+                    //log.Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} a:{cpu.AX:X4} b:{cpu.BX:X4} c:{cpu.CX:X4} d:{cpu.DX:X4} s:{cpu.SI:X4} d:{cpu.DI:X4} {cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
+                    log.Trace(() => $"{cpu.CS:X4}:{cpu.IP:X4} " + nextInstruction);
                     visited.Add(key);
                 }
             }
@@ -1575,7 +1145,7 @@ while (!stop)
             break;
     }
 }
-await keyboardTask;
+await kb.BackgroundTask;
 
 struct EquipmentList
 {

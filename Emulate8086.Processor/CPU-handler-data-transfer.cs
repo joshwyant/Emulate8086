@@ -445,7 +445,10 @@ namespace Emulate8086.Processor
             // Push flags
 
             // Push flags register onto stack
-            self.Push((short)self.flags);
+            // 8086 sets top nibble all 1's
+            // https://github.com/microsoft/MS-DOS/blob/2d04cacc5322951f187bb17e017c12920ac8ebe2/v4.0/src/INC/CPUTYPE.INC#L17
+            self.Push((short)((short)self.flags | 0xF000));
+            // TODO: Change for other CPU types
         }
 
         private static void HandlePOPF(CPU self)
