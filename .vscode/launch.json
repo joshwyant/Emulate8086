@@ -8,7 +8,7 @@
             "name": "C#: Emulate8086.Console Debug",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/Emulate8086.Console/Emulate8086.Console.csproj"
+            "projectPath": "${workspaceFolder}/Emulate8086.Console/Emulate8086.Console.csproj",
         }
     ]
 }

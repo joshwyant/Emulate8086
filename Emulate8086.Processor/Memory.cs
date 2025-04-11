@@ -76,14 +76,14 @@ namespace Emulate8086.Processor
                 {
                     Console.WriteLine($"{cpu?.CS:X4}:{cpu?.IP} R. bad BDA {index:X5}");
                     // Trap uninitialized reads from the BIOS data area
-                    Debugger.Break();
+                    //Debugger.Break();
                     BDAWritten.Add(index);
                 }
                 if (!SegmentsWritten.Contains((ushort)(index >> 4)))
                 {
                     Console.WriteLine($"{cpu?.CS:X4}:{cpu?.IP} Rd. bad sg. {index >> 4:X4}");
                     SegmentsWritten.Add((ushort)(index >> 4));
-                    Debugger.Break();
+                    //Debugger.Break();
                 }
                 if (index >= last.Start && index < last.End || UseRange(index))
                 {

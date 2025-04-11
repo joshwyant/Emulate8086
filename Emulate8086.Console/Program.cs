@@ -78,7 +78,7 @@ var hardDisks = new string[] {
 var selectedDisk = 6;
 var selectedHardDisk = 0;
 
-var bootFromHardDrive = false;
+var bootFromHardDrive = true;
 var bootDrive = bootFromHardDrive ? 0x80 : 0x00;
 
 var disk = disks[selectedDisk];
@@ -111,6 +111,9 @@ for (var i = 0; i < vga_rows * vga_cols; i++)
     vram[i * 2] = (byte)' ';
     vram[i * 2 + 1] = 0x07; // Gray on black
 }
+
+var session = new SDL2Session(log);
+var sdl_display = new SDL2DisplayDriver(session, log);
 
 mem.ClearMaps();
 const int vram_addr = 0xB8000;
@@ -274,16 +277,29 @@ cpu.HookInterrupt(0x10, cpu =>
     var prevAddr = (prevTop * vga_cols + prevLeft) * 2;
     switch (cpu.AH)
     {
+        case 0x00:
+            {
+                // http://vitaly_filatov.tripod.com/ng/asm/asm_023.1.html
+                var mode = (VideoMode)(cpu.AL & 0x7F);
+                var cls = (cpu.AL & 0x80) == 0;
+                display.SetVideoMode(mode, cls);
+
+                ReturnFlag(Flags.Carry, false, cpu);
+                break;
+            }
         case 0x02:
             if (disableCursorOverwrite)
             {
+                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
             display.SetCursorPosition(cpu.DL, cpu.DH);
+            ReturnFlag(Flags.Carry, false, cpu);
             break;
         case 0x06:
             if (disableCursorOverwrite)
             {
+                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
             {
@@ -352,6 +368,7 @@ cpu.HookInterrupt(0x10, cpu =>
                     display.CursorVisible = true;
                 }
 
+                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         case 0x0A:
@@ -370,6 +387,7 @@ cpu.HookInterrupt(0x10, cpu =>
                     vram[prevAddr + i * 2] = character;
                 }
 
+                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         case 0x0E:
@@ -394,6 +412,16 @@ cpu.HookInterrupt(0x10, cpu =>
 
                 // Write the character
                 display.Write((char)character);
+                ReturnFlag(Flags.Carry, false, cpu);
+                break;
+            }
+        case 0x0F:
+            {
+                var (mode, cols, pageno) = display.GetVideoMode();
+                cpu.SetReg8(Register.AL, (byte)mode);
+                cpu.SetReg8(Register.AH, (byte)cols);
+                cpu.SetReg8(Register.BH, (byte)pageno);
+                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         default:
@@ -403,7 +431,7 @@ cpu.HookInterrupt(0x10, cpu =>
                 // Int 10h video services AH=??
                 Debugger.Break();
             }
-            ReturnFlag(Flags.Carry, false, cpu);
+            ReturnFlag(Flags.Carry, true, cpu);
             break;
     }
 });
@@ -979,8 +1007,18 @@ boot(bootDrive);
 var clock_speed_mhz = 4.77;
 var cycle_duration = TimeSpan.FromSeconds(1.0 / (clock_speed_mhz * 1000000.0));
 var instant = DateTime.Now;
+var lastFrame = DateTime.Now;
+var framerate = TimeSpan.FromSeconds(1.0 / 30.0);
 while (!stop)
 {
+    if (DateTime.Now - lastFrame >= framerate)
+    {
+        lastFrame += framerate;
+        if (!session.PollEvents())
+        {
+            break;
+        }
+    }
     while (DateTime.Now - instant < cycle_duration) ;
     instant += cycle_duration;
     if (cpu.CS * 16 + cpu.IP == 0)

@@ -24,8 +24,21 @@ class ConsoleDisplayDriver : DisplayDriver
     public override (int left, int top) GetCursorPosition()
         => Console.GetCursorPosition();
 
+    public override (VideoMode mode, int cols, int pageno) GetVideoMode()
+    {
+        return (VideoMode.Text80x25_16Color_B8000, 80, 0);
+    }
+
     public override void SetCursorPosition(int left, int top)
         => Console.SetCursorPosition(left, top);
+
+    public override void SetVideoMode(VideoMode mode, bool clearScreen)
+    {
+        if (clearScreen)
+        {
+            Clear();
+        }
+    }
 
     public override void Write(char c)
         => Console.Write(c);
