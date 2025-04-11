@@ -6,6 +6,8 @@ namespace Emulate8086.Processor
 {
     public partial class CPU
     {
+        public long ElapsedCycles { get; protected set; } = 0;
+        public bool is8088 = true;
         public CPU(Memory m)
         {
             memory = m;

@@ -60,10 +60,12 @@ namespace Emulate8086.Processor
                 // D = 1: Instruction destination is specified in REG field
                 if (!self.insD)
                 {
+                    self.ElapsedCycles += self.modrm_is_reg ? 3 : 16;
                     self.SetModRMData((ushort)result);
                 }
                 else
                 {
+                    self.ElapsedCycles += self.modrm_is_reg ? 3 : 9;
                     self.SetReg(self.insReg, (ushort)result, self.insW);
                 }
             }
@@ -78,6 +80,8 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.S |
                     InstructionDecoderFlags.Byte |
                     InstructionDecoderFlags.Word);
+
+                self.ElapsedCycles += self.modrm_is_reg ? 4 : 17;
 
                 // Add immediate to r/m
                 // Extended opcode is 000
@@ -136,10 +140,12 @@ namespace Emulate8086.Processor
                 result += a + b;
                 if (!self.insD)
                 {
+                    self.ElapsedCycles += self.modrm_is_reg ? 3 : 16;
                     self.SetModRMData((ushort)result);
                 }
                 else
                 {
+                    self.ElapsedCycles += self.modrm_is_reg ? 3 : 9;
                     self.SetReg(self.insReg, (ushort)result, self.insW);
                 }
             }
@@ -155,6 +161,8 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.S |
                     InstructionDecoderFlags.Byte |
                     InstructionDecoderFlags.Word);
+
+                self.ElapsedCycles += self.modrm_is_reg ? 4 : 17;
 
                 // Add immediate to r/m
                 // Extended opcode is 010
@@ -174,6 +182,8 @@ namespace Emulate8086.Processor
                     InstructionDecoderFlags.W |
                     InstructionDecoderFlags.Byte |
                     InstructionDecoderFlags.Word);
+
+                self.ElapsedCycles += 4;
 
                 // Add immediate to accumulator
                 a = self.insW ? self.ax : self.al;
@@ -250,6 +260,8 @@ namespace Emulate8086.Processor
             // ASCII adjust for add
             // 00110111 (37)
             // 4 clocks
+
+            self.ElapsedCycles += 4;
 
             // Logic: https://en.wikipedia.org/wiki/Intel_BCD_opcode
             //        https://web.archive.org/web/20190203181246/http://www.jaist.ac.jp/iscenter-new/mpc/altix/altixdata/opt/intel/vtune/doc/users_guide/mergedProjects/analyzer_ec/mergedProjects/reference_olh/mergedProjects/instructions/instruct32_hh/vc2a.htm
@@ -669,6 +681,8 @@ namespace Emulate8086.Processor
             // 00111111 (3F) -- ASCII adjust for subtract
             // 4 clocks
 
+            self.ElapsedCycles += 4;
+
             // If lower nibble is > 9 or AF is set
             if ((self.al & 0xF) > 9 || self.AF)
             {
@@ -858,6 +872,8 @@ namespace Emulate8086.Processor
             // (It equals 10 in decimal)
             // 83 clocks
             // Description: Intel 8086 Family User's Manual October 1979, p. 2-36
+
+            self.ElapsedCycles += 83;
 
             byte base10 = 10; // This is usually the second byte of the instruction
 
@@ -1053,6 +1069,8 @@ namespace Emulate8086.Processor
 
             // ASCII adjust for divide
             // 11010101 00001010 (D5 0A)
+
+            self.ElapsedCycles += 60;
 
             byte base10 = 10; // This is usually the second byte of the instruction
 
