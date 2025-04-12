@@ -114,7 +114,7 @@ partial class SDL2DisplayDriver : DisplayDriver
     }
     public override int BackgroundColor { get; set; } = 0;
     public override int ForegroundColor { get; set; } = 7;
-    bool cursorVisible;
+    bool cursorVisible = true;
     public override bool CursorVisible { set => cursorVisible = value; }
     int cursorLeft = 0, cursorTop = 0;
     VideoMode mode = VideoMode.Text80x25_16Color_B8000;
@@ -163,14 +163,23 @@ partial class SDL2DisplayDriver : DisplayDriver
                 cursorTop += 1;
                 break;
             case '\t':
-                cursorLeft = (cursorLeft + tabstop - 1) / tabstop;
+                //cursorLeft = (cursorLeft + tabstop - 1) / tabstop;
                 break;
             case '\b':
-                cursorLeft--;
-                if (cursorLeft < 0)
+                // var currentChar = vram[(cursorTop * cols + cursorLeft) * 2];
+                // if (currentChar == '\t')
+                // {
+                //     var newLeft = cursorLeft / tabstop * tabstop;
+                //     if (newLeft == cursorLeft) newLeft -= tabstop;
+                // }
+                // else
                 {
-                    cursorLeft = 0;
-                    cursorTop--;
+                    cursorLeft--;
+                    if (cursorLeft < 0)
+                    {
+                        cursorLeft = 0;
+                        cursorTop--;
+                    }
                 }
                 break;
             default:

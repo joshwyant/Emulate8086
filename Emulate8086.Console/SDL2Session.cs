@@ -64,6 +64,13 @@ class SDL2Session : IDisposable
 
         if (Renderer == null) return true;
 
+        Redraw();
+
+        return true;
+    }
+
+    public void Redraw()
+    {
         // Clear screen
         SDL_SetRenderDrawColor(Renderer.Handle, 0, 0, 0, 255);
         SDL_RenderClear(Renderer.Handle);
@@ -72,8 +79,6 @@ class SDL2Session : IDisposable
 
         // Update screen
         SDL_RenderPresent(Renderer.Handle);
-
-        return true;
     }
 
     public class SDL2Renderer : IDisposable

@@ -12,7 +12,7 @@ bool prompting = false;
 var loglevel = 4;
 bool break_with_debugger = false;
 bool breakpoints_enabled = true;
-bool disableCursorOverwrite = true;
+bool disableCursorOverwrite = false;
 HashSet<int> break_addrs = [
     //0x7C00,
     //0x0500,
@@ -113,7 +113,6 @@ for (var i = 0; i < vga_rows * vga_cols; i++)
 }
 
 var session = new SDL2Session(log);
-var sdl_display = new SDL2DisplayDriver(session, vram, log);
 
 mem.ClearMaps();
 const int vram_addr = 0xB8000;
@@ -269,12 +268,13 @@ cpu.HookInterrupt(0x08, cpu =>
     log.Trace(() => $"INT 1Ch vector: {seg:X4}:{off:X4}");
     cpu.Jump(seg, off);
 });
-var display = new ConsoleDisplayDriver();
+var display = new SDL2DisplayDriver(session, vram, log);
 cpu.HookInterrupt(0x10, cpu =>
 {
     // https://en.wikipedia.org/wiki/INT_10H#List_of_supported_functions
     var (prevLeft, prevTop) = display.GetCursorPosition();
     var prevAddr = (prevTop * vga_cols + prevLeft) * 2;
+    ReturnFlag(Flags.Carry, false, cpu);
     switch (cpu.AH)
     {
         case 0x00:
@@ -283,23 +283,18 @@ cpu.HookInterrupt(0x10, cpu =>
                 var mode = (VideoMode)(cpu.AL & 0x7F);
                 var cls = (cpu.AL & 0x80) == 0;
                 display.SetVideoMode(mode, cls);
-
-                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         case 0x02:
             if (disableCursorOverwrite)
             {
-                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
             display.SetCursorPosition(cpu.DL, cpu.DH);
-            ReturnFlag(Flags.Carry, false, cpu);
             break;
         case 0x06:
             if (disableCursorOverwrite)
             {
-                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
             {
@@ -367,8 +362,6 @@ cpu.HookInterrupt(0x10, cpu =>
                     }
                     display.CursorVisible = true;
                 }
-
-                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         case 0x0A:
@@ -386,8 +379,6 @@ cpu.HookInterrupt(0x10, cpu =>
                     display.Write((char)character);
                     vram[prevAddr + i * 2] = character;
                 }
-
-                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         case 0x0E:
@@ -410,7 +401,7 @@ cpu.HookInterrupt(0x10, cpu =>
                     display.ForegroundColor = attr & 0xF;
                 }
 
-                if (character == 13)
+                if (character == 13 && prevTop == vga_rows - 1)
                 {
                     // Scroll the memory up
                     int i;
@@ -428,7 +419,6 @@ cpu.HookInterrupt(0x10, cpu =>
 
                 // Write the character
                 display.Write((char)character);
-                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         case 0x0F:
@@ -437,7 +427,6 @@ cpu.HookInterrupt(0x10, cpu =>
                 cpu.SetReg8(Register.AL, (byte)mode);
                 cpu.SetReg8(Register.AH, (byte)cols);
                 cpu.SetReg8(Register.BH, (byte)pageno);
-                ReturnFlag(Flags.Carry, false, cpu);
                 break;
             }
         default:
@@ -710,12 +699,14 @@ cpu.HookInterrupt(0x16, cpu =>
     switch (cpu.AH)
     {
         case 0x00:
+            session.Redraw();
             (ascii, scancode) = kb.WaitForKey();
             cpu.SetReg8(Register.AL, (byte)ascii);
             cpu.SetReg8(Register.AH, scancode);
             ReturnFlag(Flags.Carry, false, cpu);
             break;
         case 0x01:
+            session.Redraw();
             bool keyAvailable = kb.CheckForKey(out ascii, out scancode);
             cpu.SetReg8(Register.AL, (byte)ascii);
             cpu.SetReg8(Register.AH, scancode);
