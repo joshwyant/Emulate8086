@@ -17,9 +17,11 @@ partial class SDL2DisplayDriver : DisplayDriver
     Logger log;
     int cols = 80, rows = 25;
     nint fontTex;
-    public SDL2DisplayDriver(SDL2Session session, Logger log)
+    byte[] vram;
+    public SDL2DisplayDriver(SDL2Session session, byte[] vram, Logger log)
     {
         this.session = session;
+        this.vram = vram;
         this.log = log;
         fontTex = ProcessFont();
         session.Draw += SDL2Session_Draw;
@@ -28,11 +30,24 @@ partial class SDL2DisplayDriver : DisplayDriver
     private void SDL2Session_Draw()
     {
         Random r = new();
-        for (var i = 0; i < 80; i++)
-            for (var j = 0; j < 25; j++)
+        for (var i = 0; i < rows * cols; i++)
+        {
+            var row = i / cols;
+            var col = i % cols;
+            var attr = vram[i * 2 + 1];
+            var fgcol = attr & 0xF;
+            var bgcol = attr >> 4;
+
+            if (cursorVisible && i == (cursorTop * cols + cursorLeft))
             {
-                draw_char(session.Renderer.Handle, (char)(r.Next() % 256), i * 8, j * 16, MatchColor(i % 16), MatchColor((i + j + 8) % 16));
+                // Invert at the cursor
+                var tmp = fgcol;
+                fgcol = bgcol;
+                bgcol = tmp;
             }
+
+            draw_char(session.Renderer.Handle, (char)Math.Max((byte)32, vram[i * 2]), col * 8, row * 16, MatchColor(fgcol), MatchColor(bgcol));
+        }
     }
 
     unsafe void draw_char(nint r, char ch, int x, int y, SDL_Color color, SDL_Color bgcol)
@@ -52,14 +67,6 @@ partial class SDL2DisplayDriver : DisplayDriver
         SDL_RenderFillRect(r, ref dst);
 
         SDL_RenderCopy(r, fontTex, ref src, ref dst);
-    }
-
-    void draw_string(int x, int y, string text)
-    {
-        for (var i = 0; i < text.Length; i++)
-        {
-            draw_char(session.Renderer.Handle, text[i], x + 8 * i, y, new SDL_Color() { r = 255, g = 255, b = 255, a = 255 }, new SDL_Color() { r = 0, g = 0, b = 0, a = 255 });
-        }
     }
 
     SDL_PixelFormat format;
@@ -158,6 +165,14 @@ partial class SDL2DisplayDriver : DisplayDriver
             case '\t':
                 cursorLeft = (cursorLeft + tabstop - 1) / tabstop;
                 break;
+            case '\b':
+                cursorLeft--;
+                if (cursorLeft < 0)
+                {
+                    cursorLeft = 0;
+                    cursorTop--;
+                }
+                break;
             default:
                 cursorLeft++;
                 if (cursorLeft == cols)
@@ -168,6 +183,7 @@ partial class SDL2DisplayDriver : DisplayDriver
                 break;
         }
         if (cursorTop >= rows) cursorTop = rows - 1;
+        if (cursorTop < 0) cursorTop = 0;
     }
 
     SDL_Color MatchColor(int color)

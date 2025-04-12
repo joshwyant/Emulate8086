@@ -102,7 +102,7 @@ bool hddEnabled = true;
 var memSize = 1024 * 1024;
 var mem = new Memory(memSize); // 1mb // 640KB
 const int vga_cols = 80;
-const int vga_rows = 24; // 25
+const int vga_rows = 25;
 const int vram_size = vga_cols * vga_rows * 2;
 var vram = new byte[vram_size];
 // Fill VRAM
@@ -113,7 +113,7 @@ for (var i = 0; i < vga_rows * vga_cols; i++)
 }
 
 var session = new SDL2Session(log);
-var sdl_display = new SDL2DisplayDriver(session, log);
+var sdl_display = new SDL2DisplayDriver(session, vram, log);
 
 mem.ClearMaps();
 const int vram_addr = 0xB8000;
@@ -408,6 +408,22 @@ cpu.HookInterrupt(0x10, cpu =>
 
                     display.BackgroundColor = attr >> 4;
                     display.ForegroundColor = attr & 0xF;
+                }
+
+                if (character == 13)
+                {
+                    // Scroll the memory up
+                    int i;
+                    for (i = 0; i < (vga_rows - 1) * vga_cols; i++)
+                    {
+                        vram[i * 2] = vram[(i + vga_cols) * 2];
+                        vram[i * 2 + 1] = vram[(i + vga_cols) * 2 + 1];
+                    }
+                    for (; i < vga_rows * vga_cols; i++)
+                    {
+                        vram[i * 2] = (byte)' ';
+                        vram[i * 2 + 1] = (byte)((display.BackgroundColor << 4) | display.ForegroundColor);
+                    }
                 }
 
                 // Write the character
