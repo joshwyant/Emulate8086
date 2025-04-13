@@ -74,7 +74,7 @@ namespace Emulate8086.Processor
             {
                 if ((index >= 0 && index < 0x500 || index >= 0xF0000) && !BDAWritten.Contains(index))
                 {
-                    Console.WriteLine($"{cpu?.CS:X4}:{cpu?.IP} R. bad BDA {index:X5}");
+                    Console.WriteLine($"{cpu?.CS:X4}:{cpu?.IP:X4} R. bad BDA {index:X5}");
                     // Trap uninitialized reads from the BIOS data area
                     //Debugger.Break();
                     BDAWritten.Add(index);

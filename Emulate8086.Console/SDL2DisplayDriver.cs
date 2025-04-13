@@ -48,6 +48,17 @@ partial class SDL2DisplayDriver : DisplayDriver
 
             draw_char(session.Renderer.Handle, (char)Math.Max((byte)32, vram[i * 2]), col * 8, row * 16, MatchColor(fgcol), MatchColor(bgcol));
         }
+
+        //     var theme = new ControlTheme();
+
+        //     var color = theme.Background;
+        //     SDL_SetRenderDrawColor(session.Renderer.Handle, color.r, color.g, color.b, 255);
+        //     SDL_RenderClear(session.Renderer.Handle);
+
+        //     var cr = new ControlRenderer(session, theme);
+        //     cr.DrawWindow(0, 0, 640, 400, true, theme.Window);
+
+        //     cr.DrawButton(32 + 2 + 32, 32 + 20 + 32, 75, 20, false);
     }
 
     unsafe void draw_char(nint r, char ch, int x, int y, SDL_Color color, SDL_Color bgcol)

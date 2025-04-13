@@ -52,15 +52,68 @@ class SDL2Session : IDisposable
     }
 
     public Queue<SDL_KeyboardEvent> KeyDownEvents { get; } = new Queue<SDL_KeyboardEvent>();
+    // bool captured = false;
+    // int captured_x = 0;
+    // int captured_y = 0;
     public bool PollEvents()
     {
         SDL_Event e;
+
+        // // Very first thing for best performance
+        // if (captured)
+        // {
+        //     var buttons = SDL_GetGlobalMouseState(out int globalx, out int globaly);
+        //     if ((buttons & SDL_BUTTON_LMASK) != 0)
+        //     {
+        //         SDL_SetWindowPosition(Window.Handle, globalx - captured_x, globaly - captured_y);
+        //     }
+        //     else
+        //     {
+        //         captured = false;
+        //     }
+        // }
+
+        // Draw before window is shown
+        if (Renderer != null)
+        {
+            Redraw();
+        }
+
         while (SDL_PollEvent(out e) != 0)
         {
             switch (e.type)
             {
                 case SDL_EventType.SDL_QUIT:
                     return false;
+                // case SDL_EventType.SDL_MOUSEBUTTONDOWN:
+                //     if (e.motion.x > 2 && e.motion.x < 638 && e.motion.y > 2 && e.motion.y < 20)
+                //     {
+                //         SDL_CaptureMouse(SDL_bool.SDL_TRUE);
+                //         captured = true;
+                //         captured_x = e.motion.x;
+                //         captured_y = e.motion.y;
+                //     }
+                //     break;
+                // case SDL_EventType.SDL_WINDOWEVENT:
+                //     if (e.window.windowEvent == SDL_WindowEventID.SDL_WINDOWEVENT_FOCUS_GAINED)
+                //     {
+                //         var buttons = SDL_GetGlobalMouseState(out int globalx, out int globaly);
+                //         SDL_GetWindowPosition(Window.Handle, out int winx, out int winy);
+                //         var mousex = globalx - winx;
+                //         var mousey = globaly - winy;
+                //         if (mousex > 2 && mousex < 638 && mousey > 2 && mousey < 20 && (buttons & SDL_BUTTON_LMASK) != 0)
+                //         {
+                //             SDL_CaptureMouse(SDL_bool.SDL_TRUE);
+                //             captured = true;
+                //             captured_x = mousex;
+                //             captured_y = mousey;
+                //         }
+                //     }
+                //     break;
+                // case SDL_EventType.SDL_MOUSEBUTTONUP:
+                //     SDL_CaptureMouse(SDL_bool.SDL_FALSE);
+                //     captured = false;
+                //     break;
                 case SDL_EventType.SDL_KEYDOWN:
                     switch (e.key.keysym.sym)
                     {
@@ -75,13 +128,13 @@ class SDL2Session : IDisposable
                             KeyDownEvents.Enqueue(e.key);
                             break;
                     }
+                    // // If using Windows-style accelerators:
+                    // if (e.key.keysym.sym == SDL_Keycode.SDLK_F4 && (e.key.keysym.mod & SDL_Keymod.KMOD_ALT) != 0)
+                    // {
+                    //     return false;
+                    // }
                     break;
             }
-        }
-
-        if (Renderer != null)
-        {
-            Redraw();
         }
 
         return true;
@@ -133,7 +186,7 @@ class SDL2Session : IDisposable
                 SDL_WINDOWPOS_UNDEFINED,
                 width,
                 height,
-                SDL_WindowFlags.SDL_WINDOW_SHOWN
+                SDL_WindowFlags.SDL_WINDOW_SHOWN // | SDL_WindowFlags.SDL_WINDOW_BORDERLESS
             );
 
             return handle == IntPtr.Zero ? null : new(handle);

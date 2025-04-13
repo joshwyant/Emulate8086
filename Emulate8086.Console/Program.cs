@@ -75,10 +75,10 @@ var disks = new string[] {
 var hardDisks = new string[] {
     "/Users/josh/Downloads/PCDOS200-C400.img",
 };
-var selectedDisk = 2;
+var selectedDisk = 6;
 var selectedHardDisk = 0;
 
-var bootFromHardDrive = false;
+var bootFromHardDrive = true;
 var bootDrive = bootFromHardDrive ? 0x80 : 0x00;
 
 var disk = disks[selectedDisk];
@@ -401,7 +401,7 @@ cpu.HookInterrupt(0x10, cpu =>
                     display.ForegroundColor = attr & 0xF;
                 }
 
-                if (character == 13 && prevTop == vga_rows - 1)
+                if ((character == 13 || prevLeft == vga_cols - 1) && prevTop == vga_rows - 1)
                 {
                     // Scroll the memory up
                     int i;
