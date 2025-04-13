@@ -75,10 +75,10 @@ var disks = new string[] {
 var hardDisks = new string[] {
     "/Users/josh/Downloads/PCDOS200-C400.img",
 };
-var selectedDisk = 6;
+var selectedDisk = 2;
 var selectedHardDisk = 0;
 
-var bootFromHardDrive = true;
+var bootFromHardDrive = false;
 var bootDrive = bootFromHardDrive ? 0x80 : 0x00;
 
 var disk = disks[selectedDisk];
@@ -691,7 +691,7 @@ cpu.HookInterrupt(0x15, cpu =>
     // http://vitaly_filatov.tripod.com/ng/asm/asm_026.19.html
 
 });
-var kb = new ConsoleKeyboardDriver();
+var kb = new SDL2KeyboardDriver(session);
 cpu.HookInterrupt(0x16, cpu =>
 {
     char ascii;
@@ -699,14 +699,12 @@ cpu.HookInterrupt(0x16, cpu =>
     switch (cpu.AH)
     {
         case 0x00:
-            session.Redraw();
             (ascii, scancode) = kb.WaitForKey();
             cpu.SetReg8(Register.AL, (byte)ascii);
             cpu.SetReg8(Register.AH, scancode);
             ReturnFlag(Flags.Carry, false, cpu);
             break;
         case 0x01:
-            session.Redraw();
             bool keyAvailable = kb.CheckForKey(out ascii, out scancode);
             cpu.SetReg8(Register.AL, (byte)ascii);
             cpu.SetReg8(Register.AH, scancode);
@@ -762,9 +760,9 @@ cpu.HookInterrupt(0x17, cpu =>
 void boot(int bootDrive)
 {
     // Console.SetBufferSize(80, 25);
-    Console.BackgroundColor = ConsoleColor.Black;
-    Console.ForegroundColor = ConsoleColor.Gray;
-    Console.Clear();
+    display.BackgroundColor = (int)ConsoleColor.Black;
+    display.ForegroundColor = (int)ConsoleColor.Gray;
+    display.Clear();
     // Console.WriteLine("No boot device");
     var bootsect = new byte[512];
     var f = bootDrive == 0x80 ? hardDriveFile : file;
@@ -1190,7 +1188,7 @@ while (!stop)
             break;
     }
 }
-await kb.BackgroundTask;
+//await kb.BackgroundTask;
 
 struct EquipmentList
 {

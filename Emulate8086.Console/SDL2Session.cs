@@ -51,20 +51,38 @@ class SDL2Session : IDisposable
         }
     }
 
+    public Queue<SDL_KeyboardEvent> KeyDownEvents { get; } = new Queue<SDL_KeyboardEvent>();
     public bool PollEvents()
     {
         SDL_Event e;
         while (SDL_PollEvent(out e) != 0)
         {
-            if (e.type == SDL_EventType.SDL_QUIT)
+            switch (e.type)
             {
-                return false;
+                case SDL_EventType.SDL_QUIT:
+                    return false;
+                case SDL_EventType.SDL_KEYDOWN:
+                    switch (e.key.keysym.sym)
+                    {
+                        case SDL_Keycode.SDLK_LSHIFT:
+                        case SDL_Keycode.SDLK_RSHIFT:
+                        case SDL_Keycode.SDLK_LCTRL:
+                        case SDL_Keycode.SDLK_RCTRL:
+                        case SDL_Keycode.SDLK_LALT:
+                        case SDL_Keycode.SDLK_RALT:
+                            break;
+                        default:
+                            KeyDownEvents.Enqueue(e.key);
+                            break;
+                    }
+                    break;
             }
         }
 
-        if (Renderer == null) return true;
-
-        Redraw();
+        if (Renderer != null)
+        {
+            Redraw();
+        }
 
         return true;
     }
